@@ -39,9 +39,14 @@ fn compile_c(sdk: &Path) {
         .archiver(&llvm_ar)
         .flag(&format!("--sysroot={}", sysroot.display()))
         .flag("--target=wasm32-wasi")
-        // Enable WASM exception handling so setjmp/longjmp (used by Lua) work.
-        // -fwasm-exceptions covers both C++ exceptions and the EH proposal needed for setjmp.
+        // Lua uses setjmp/longjmp for error handling. wasi-sdk-25 normally compiles
+        // these into JS-imported functions (env.setjmp/env.longjmp) which require a
+        // host-side runtime. Pairing -fwasm-exceptions with -mllvm -wasm-enable-sjlj
+        // makes clang lower setjmp/longjmp to native WASM EH instructions instead,
+        // so the resulting module needs no JS-side sjlj shim.
         .flag("-fwasm-exceptions")
+        .flag("-mllvm")
+        .flag("-wasm-enable-sjlj")
         .define("_WASI_EMULATED_SIGNAL", None)
         // WASI lacks L_tmpnam; stub out lua_tmpnam to skip the ISO C block that references it
         .define("LUA_TMPNAMBUFSIZE", Some("256"))
@@ -84,6 +89,22 @@ fn compile_c(sdk: &Path) {
     }
 
     build.compile("tinybit");
+
+    // Link wasi-sdk libraries that the C code depends on:
+    //   * libsetjmp        — defines __wasm_setjmp/__wasm_longjmp emitted by
+    //                        clang with -mllvm -wasm-enable-sjlj.
+    //   * libwasi-emulated-process-clocks — provides clock() (Lua references it).
+    //   * libwasi-emulated-signal         — provides signal stubs that match the
+    //                        _WASI_EMULATED_SIGNAL define above.
+    let lib_dir = sdk
+        .join("share")
+        .join("wasi-sysroot")
+        .join("lib")
+        .join("wasm32-wasip1");
+    println!("cargo:rustc-link-search=native={}", lib_dir.display());
+    println!("cargo:rustc-link-lib=static=setjmp");
+    println!("cargo:rustc-link-lib=static=wasi-emulated-process-clocks");
+    println!("cargo:rustc-link-lib=static=wasi-emulated-signal");
 }
 
 
