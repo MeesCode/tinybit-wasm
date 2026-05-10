@@ -13,6 +13,35 @@ const PREVENT_DEFAULT_KEYS = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Backspace',
 ]);
 
+const AUDIO_FRAME_SAMPLES = 367;
+
+let audioCtx = null;
+let workletNode = null;
+
+async function ensureAudio() {
+  if (audioCtx) return;
+  audioCtx = new AudioContext({ sampleRate: 22000 });
+  if (audioCtx.sampleRate !== 22000) {
+    console.warn(
+      `AudioContext refused 22000 Hz (got ${audioCtx.sampleRate} Hz); audio pitch may be off`,
+    );
+  }
+  await audioCtx.audioWorklet.addModule('./audio-worklet.js');
+  workletNode = new AudioWorkletNode(audioCtx, 'tinybit', { numberOfOutputs: 1, outputChannelCount: [1] });
+  workletNode.connect(audioCtx.destination);
+}
+
+function pumpAudio() {
+  if (!workletNode) return;
+  const ptr = tb.tb_audio_ptr();
+  const samples = new Int16Array(memoryRef.value.buffer, ptr, AUDIO_FRAME_SAMPLES);
+  const f = new Float32Array(AUDIO_FRAME_SAMPLES);
+  for (let i = 0; i < AUDIO_FRAME_SAMPLES; i++) {
+    f[i] = samples[i] / 32768;
+  }
+  workletNode.port.postMessage(f.buffer, [f.buffer]);
+}
+
 const memoryRef = { value: null };
 const wasi = makeWasiShim(memoryRef);
 
@@ -63,6 +92,7 @@ function tick() {
   if (!running) return;
   tb.tb_loop_once();
   blitDisplay();
+  pumpAudio();
   rafId = requestAnimationFrame(tick);
 }
 
@@ -78,6 +108,12 @@ function stopGame() {
 async function loadCartridge(file) {
   clearError();
   stopGame();
+
+  try {
+    await ensureAudio();
+  } catch (err) {
+    console.warn('audio init failed; running silent:', err);
+  }
 
   const buf = new Uint8Array(await file.arrayBuffer());
 
