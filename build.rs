@@ -9,9 +9,81 @@ const WASI_SDK_TARBALL_URL: &str =
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=WASI_SDK_PATH");
+    println!("cargo:rerun-if-changed=src/tinybit/tinybit.h");
+    // Watch all C source and header files in the submodule for changes
+    println!("cargo:rerun-if-changed=src/tinybit");
 
-    let _sdk = ensure_wasi_sdk();
-    // Tasks 3 and 4 add C compilation and bindgen here.
+    let sdk = ensure_wasi_sdk();
+    require_submodule();
+    compile_c(&sdk);
+}
+
+fn require_submodule() {
+    let header = PathBuf::from("src/tinybit/tinybit.h");
+    if !header.exists() {
+        panic!(
+            "tinybit submodule missing at src/tinybit/. Run:\n\
+             \tgit submodule update --init --recursive"
+        );
+    }
+}
+
+fn compile_c(sdk: &Path) {
+    let sysroot = sdk.join("share").join("wasi-sysroot");
+    let clang = sdk.join("bin").join("clang");
+    let llvm_ar = sdk.join("bin").join("llvm-ar");
+
+    let mut build = cc::Build::new();
+    build
+        .compiler(&clang)
+        .archiver(&llvm_ar)
+        .flag(&format!("--sysroot={}", sysroot.display()))
+        .flag("--target=wasm32-wasi")
+        // Enable WASM exception handling so setjmp/longjmp (used by Lua) work.
+        // -fwasm-exceptions covers both C++ exceptions and the EH proposal needed for setjmp.
+        .flag("-fwasm-exceptions")
+        .define("_WASI_EMULATED_SIGNAL", None)
+        // WASI lacks L_tmpnam; stub out lua_tmpnam to skip the ISO C block that references it
+        .define("LUA_TMPNAMBUFSIZE", Some("256"))
+        .define("lua_tmpnam(b,e)", Some("{ (void)(b); (e)=1; }"))
+        .define("PNGLE_STATIC_ALLOC", None)
+        .define("PNGLE_NO_GAMMA_CORRECTION", None)
+        .define("MINIZ_NO_MALLOC", None)
+        .include("src/tinybit")
+        .include("src/tinybit/lua")
+        .include("src/tinybit/pngle")
+        .include("src/tinybit/ABC-parser")
+        .warnings(false)
+        .opt_level(2);
+
+    let core_sources = [
+        "tinybit.c",
+        "lua_pool.c",
+        "cartridge.c",
+        "graphics.c",
+        "font.c",
+        "input.c",
+        "audio.c",
+        "memory.c",
+        "lua_functions.c",
+        "pngle/pngle.c",
+        "pngle/miniz.c",
+        "ABC-parser/abc_parser.c",
+    ];
+    for src in core_sources {
+        build.file(format!("src/tinybit/{}", src));
+    }
+
+    let lua_dir = Path::new("src/tinybit/lua");
+    for entry in std::fs::read_dir(lua_dir).expect("read lua dir") {
+        let entry = entry.expect("lua dir entry");
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("c") {
+            build.file(path);
+        }
+    }
+
+    build.compile("tinybit");
 }
 
 fn ensure_wasi_sdk() -> PathBuf {
