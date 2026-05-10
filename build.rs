@@ -86,6 +86,7 @@ fn compile_c(sdk: &Path) {
     build.compile("tinybit");
 }
 
+
 fn ensure_wasi_sdk() -> PathBuf {
     if let Ok(p) = env::var("WASI_SDK_PATH") {
         let p = PathBuf::from(p);
