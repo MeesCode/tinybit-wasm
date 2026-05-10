@@ -12,7 +12,7 @@ The C library is consumed unmodified as a git submodule; all platform glue is wr
 ## Goals
 
 1. The C library (`MeesCode/TinyBit-lib`) is included as a git submodule at `src/tinybit/`. **Zero source modifications.**
-2. `cargo build --target wasm32-unknown-unknown --release` (and the equivalent `wasm-pack build --target web`) builds the entire artifact, including compiling the C library.
+2. `cargo build --target wasm32-wasip1 --release` builds the entire artifact, including compiling the C library. No `wasm-bindgen`, no `wasm-pack`. JS-side glue is hand-written.
 3. A `web/index.html` page provides:
    - A file input that accepts a `.tb.png` cartridge
    - On selection, the cartridge is fed into the engine and play starts immediately
@@ -38,49 +38,59 @@ The following are deferred and explicitly out of scope:
 Three layers, top-to-bottom:
 
 1. **C engine** (`src/tinybit/`, submodule, untouched). Pure C99: Lua VM, pngle PNG decoder, ABC audio parser, graphics/audio/input modules. Exposes the API in `tinybit.h`.
-2. **Rust wrapper** (`src/lib.rs`). Owns the `TinyBitMemory` block, registers C callbacks, and exports a small `#[wasm_bindgen]` surface to JS. Compiles to a `cdylib` for `wasm32-unknown-unknown`.
-3. **Web frontend** (`web/`). Plain HTML + ES module JS that imports the wasm-pack bundle, drives the rAF loop, blits the display to a canvas, pushes audio frames into an `AudioWorkletNode`, and translates keyboard events into button writes.
+2. **Rust wrapper** (`src/lib.rs`). Owns the `TinyBitMemory` block, registers C callbacks, and exports a small set of `#[no_mangle] extern "C"` functions to JS. Compiles to a `cdylib` for `wasm32-wasip1`. Both Rust and the C engine target `wasm32-wasip1`, so there is no mixed-target linking and the libc surface is consistent.
+3. **Web frontend** (`web/`). Plain HTML + ES module JS that loads the `.wasm` directly via `WebAssembly.instantiateStreaming`, drives the rAF loop, blits the display to a canvas, pushes audio frames into an `AudioWorkletNode`, and translates keyboard events into button writes. The only WASM imports are the WASI snapshot preview1 surface, satisfied by `web/wasi-shim.js`.
 
 ## Repository Layout
 
 ```
 tinybit_wasm/
-├── Cargo.toml                 # crate-type = ["cdylib"]; deps: wasm-bindgen, js-sys, web-sys
+├── Cargo.toml                 # crate-type = ["cdylib"]; no wasm-bindgen
 ├── build.rs                   # cc-rs + bindgen, driven by wasi-sdk clang
 ├── src/
 │   ├── tinybit/               # git submodule -> MeesCode/TinyBit-lib (untouched)
-│   ├── lib.rs                 # wasm-bindgen exports + callback glue
+│   ├── lib.rs                 # raw extern "C" exports + C callback glue
 │   └── bindings.rs            # bindgen-generated FFI (output written to OUT_DIR; included via include!)
 ├── web/
 │   ├── index.html             # file input + canvas
-│   ├── index.js               # entry: uploads, rAF loop, keyboard, audio pump
+│   ├── index.js               # entry: instantiates wasm, uploads, rAF loop, keyboard, audio pump
 │   ├── audio-worklet.js       # AudioWorkletProcessor with ring buffer
-│   └── wasi-shim.js           # ~40-line WASI imports satisfier
+│   ├── wasi-shim.js           # ~40-line WASI imports satisfier
+│   └── tinybit_wasm.wasm      # built artifact, copied here by build script (gitignored)
+├── scripts/
+│   └── build.sh               # cargo build + copy artifact into web/
 ├── docs/superpowers/specs/    # design + planning docs
 ├── README.md
 └── .gitignore
 ```
 
-The `wasi-sdk` itself is downloaded into `target/wasi-sdk/` on first build (or located via the `WASI_SDK_PATH` env var) and is gitignored.
+The `wasi-sdk` itself is downloaded into `target/wasi-sdk/` on first build (or located via the `WASI_SDK_PATH` env var) and is gitignored. The built `.wasm` in `web/` is also gitignored — only source is committed.
 
 ## Build Pipeline
 
-`cargo build --target wasm32-unknown-unknown --release`:
+`scripts/build.sh` is the single entry point. It runs:
+
+```sh
+cargo build --target wasm32-wasip1 --release
+cp target/wasm32-wasip1/release/tinybit_wasm.wasm web/tinybit_wasm.wasm
+```
+
+Behind that:
 
 1. **`build.rs`** ensures wasi-sdk is available:
    - If `WASI_SDK_PATH` is set, use it.
    - Otherwise, download a pinned wasi-sdk release tarball into `target/wasi-sdk/` and extract.
 2. `cc::Build` is configured with:
    - `compiler` = `$WASI_SDK_PATH/bin/clang`
-   - flags `--target=wasm32-wasi --sysroot=$WASI_SDK_PATH/share/wasi-sysroot`
+   - flags `--target=wasm32-wasi --sysroot=$WASI_SDK_PATH/share/wasi-sysroot` (matches the Rust target's libc/ABI assumptions)
    - the source list mirroring `src/tinybit/CMakeLists.txt`: `tinybit.c`, `lua_pool.c`, `cartridge.c`, `graphics.c`, `font.c`, `input.c`, `audio.c`, `memory.c`, `lua_functions.c`, `pngle/pngle.c`, `pngle/miniz.c`, `ABC-parser/abc_parser.c`, plus all `lua/*.c`
    - include dirs: `src/tinybit/`, `src/tinybit/lua/`, `src/tinybit/pngle/`, `src/tinybit/ABC-parser/`
    - compile defs: `PNGLE_STATIC_ALLOC`, `PNGLE_NO_GAMMA_CORRECTION`, `MINIZ_NO_MALLOC`
    - The resulting static archive is emitted under `OUT_DIR`.
 3. **`bindgen`** runs against `src/tinybit/tinybit.h` and writes Rust FFI declarations to `OUT_DIR/bindings.rs`. `src/bindings.rs` is a one-liner: `include!(concat!(env!("OUT_DIR"), "/bindings.rs"));`.
-4. The Rust crate is compiled for `wasm32-unknown-unknown` (the wasm-bindgen target); cargo links the wasi-sdk-produced archive in.
-5. `wasm-pack build --target web` wraps cargo, runs `wasm-bindgen-cli`, and emits `pkg/tinybit_wasm.js` plus `pkg/tinybit_wasm_bg.wasm`.
-6. The `web/` folder is shipped as-is; serving any static-file dev server (e.g. `python -m http.server`) over `tinybit_wasm/` makes `web/index.html` load `../pkg/tinybit_wasm.js`.
+4. The Rust crate is compiled for `wasm32-wasip1` and linked against the wasi-sdk-produced archive. Output: a single `.wasm` at `target/wasm32-wasip1/release/tinybit_wasm.wasm` containing all of Lua, pngle, the ABC parser, the engine, and the Rust glue.
+5. The build script copies that `.wasm` to `web/tinybit_wasm.wasm`.
+6. Any static-file dev server (e.g. `python -m http.server` from the `web/` folder) serves the page; the browser loads the `.wasm` via `fetch` + `WebAssembly.instantiateStreaming`.
 
 **Submodule freshness check.** `build.rs` first checks that `src/tinybit/tinybit.h` exists. If not, it errors with: "tinybit submodule missing — run: git submodule update --init --recursive". The build does not silently skip.
 
@@ -93,38 +103,42 @@ A single `lib.rs` file. Single-threaded WASM, so all state lives in a `thread_lo
 ```rust
 struct TinyBitState {
     memory: Box<TinyBitMemory>,        // ~750 KB, allocated on heap to avoid stack blowup
+    feed_buf: [u8; 256],               // staging buffer for cartridge upload
     started: bool,
 }
 ```
 
-### `#[wasm_bindgen]` exports (the JS-facing API)
+### Raw `extern "C"` exports (the JS-facing API)
 
-| Export                                 | Behavior                                                                                          |
-|----------------------------------------|---------------------------------------------------------------------------------------------------|
-| `init()`                               | Allocate memory, call `tinybit_init`, register all six C callbacks                                |
-| `feed_cartridge(bytes: &[u8]) -> bool` | Wraps `tinybit_feed_cartridge`. Called repeatedly with chunks; returns C return value             |
-| `start() -> bool`                      | `tinybit_start`                                                                                   |
-| `stop()`                               | `tinybit_stop`; clears `started` flag                                                             |
-| `loop_once()`                          | `tinybit_loop` — JS calls this once per `requestAnimationFrame`                                   |
-| `set_button(idx: u8, pressed: bool)`   | Writes `tb_mem.button_input[idx]` directly                                                        |
-| `display_ptr() -> *const u8`           | Pointer to `tb_mem.display` (32 KB RGBA4444 buffer)                                               |
-| `display_byte_len() -> usize`          | Byte length of display buffer                                                                     |
-| `audio_ptr() -> *const i16`            | Pointer to `tb_mem.audio_buffer` (367 i16 samples)                                                |
-| `audio_sample_count() -> usize`        | `367` (constant; helper for JS)                                                                   |
+All exports are declared as `#[no_mangle] pub extern "C" fn`. Primitive args + raw pointers only — no string or slice marshaling, since wasm-bindgen is not in the picture.
 
-**Why pointers + flags instead of `Vec`-returning getters.** Each frame transfers 32 KB of display + 734 B of audio. Returning `Vec<u8>` from `#[wasm_bindgen]` allocates and copies. Pointer exports let JS construct a typed-array view (`Uint16Array` / `Int16Array`) directly over wasm memory — zero copy. This is the wasm-bindgen-recommended pattern for high-frequency interop.
+| Export                                  | Behavior                                                                                                                                            |
+|-----------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tb_init()`                             | Allocate memory, call `tinybit_init`, register all six C callbacks                                                                                  |
+| `tb_feed_buffer_ptr() -> *mut u8`       | Returns pointer to a static 256-byte staging buffer in `TinyBitState`. JS writes cartridge bytes here, then calls `tb_feed_cartridge(len)`          |
+| `tb_feed_cartridge(len: u32) -> u32`    | Forwards `len` bytes from the staging buffer to `tinybit_feed_cartridge`. Returns 1 on success, 0 on failure (avoiding `bool` ABI ambiguity)        |
+| `tb_start() -> u32`                     | `tinybit_start`; 1/0                                                                                                                                |
+| `tb_stop()`                             | `tinybit_stop`; clears `started` flag                                                                                                               |
+| `tb_loop_once()`                        | `tinybit_loop` — JS calls this once per `requestAnimationFrame`                                                                                     |
+| `tb_set_button(idx: u32, pressed: u32)` | Writes `tb_mem.button_input[idx]` directly                                                                                                          |
+| `tb_display_ptr() -> *const u8`         | Pointer to `tb_mem.display` (32 KB RGBA4444 buffer = 128×128 × 2 bytes)                                                                             |
+| `tb_audio_ptr() -> *const i16`          | Pointer to `tb_mem.audio_buffer` (367 i16 samples)                                                                                                  |
+
+The 256-byte staging buffer matches the chunk size already used by the desktop C wrapper's `cartridge_io.c`. JS sets up a `Uint8Array` view over wasm memory at `tb_feed_buffer_ptr()`, copies one chunk in, calls `tb_feed_cartridge(chunk_len)`, repeats until the file is consumed.
+
+**Why raw pointers + a fixed staging buffer.** No allocator gymnastics, no JS-side `malloc`/`free`. The staging buffer's pointer is stable across the run; JS only needs to reconstruct the typed-array view if wasm memory grows. Display and audio buffers are read by JS the same way (typed-array view at the returned pointer). Display + audio constants (128, 367, etc.) are duplicated as JS constants in `index.js` rather than queried at runtime, since they never change.
 
 ### C callbacks
 
-Plain `extern "C" fn` items registered in `init()`:
+Plain `extern "C" fn` items registered in `tb_init()`:
 
 | C callback           | Implementation                                                                                                                                    |
 |----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| `log_cb(msg)`        | `web_sys::console::log_1` with the C string converted via `CStr::from_ptr`                                                                        |
-| `get_ticks_ms_cb()`  | `js_sys::Date::now()` minus a stored start time recorded in `init()`                                                                              |
-| `render_cb()`        | No-op. JS reads display memory after each `loop_once()` returns                                                                                   |
-| `poll_input_cb()`    | No-op. JS writes button state via `set_button()` directly, between `loop_once()` calls                                                            |
-| `audio_queue_cb()`   | No-op. JS reads audio memory after each `loop_once()` returns                                                                                     |
+| `log_cb(msg)`        | `libc::write(2, ...)` of the C string. wasi-sdk's libc routes fd 2 through `wasi_snapshot_preview1::fd_write`, which `wasi-shim.js` forwards to `console.error`. No custom JS import needed. |
+| `get_ticks_ms_cb()`  | Subtract a `std::time::Instant` captured in `tb_init()` from `Instant::now()` and return ms. `wasm32-wasip1` provides a working monotonic clock via `clock_time_get`, also satisfied by the shim. |
+| `render_cb()`        | No-op. JS reads display memory after each `tb_loop_once()` returns                                                                                |
+| `poll_input_cb()`    | No-op. JS writes button state via `tb_set_button()` directly, between `tb_loop_once()` calls                                                      |
+| `audio_queue_cb()`   | No-op. JS reads audio memory after each `tb_loop_once()` returns                                                                                  |
 | `gamecount_cb()`     | Returns `0` (no built-in selector in WASM build)                                                                                                  |
 | `gameload_cb(_idx)`  | No-op                                                                                                                                             |
 
@@ -134,16 +148,16 @@ Render and audio callbacks could set "frame ready" flags, but JS already calls `
 
 What JS does on every `requestAnimationFrame` tick:
 
-1. (Button events handled outside the rAF loop in keydown/keyup, calling `set_button()` directly.)
-2. `loop_once()` — runs one tick of `tinybit_loop`, internally invoking the C engine's render/audio/input.
-3. Reconstruct `Uint16Array` view over `wasmMemory.buffer` at `display_ptr()`. Expand RGBA4444 → RGBA8888 into a reused `ImageData(128, 128)`. `ctx.putImageData(img, 0, 0)`.
-4. Reconstruct `Int16Array` view over `wasmMemory.buffer` at `audio_ptr()`. Copy + scale to a fresh `Float32Array(367)` (sample / 32768). Transfer the buffer to the worklet via `port.postMessage(buf, [buf])`.
+1. (Button events handled outside the rAF loop in keydown/keyup, calling `tb_set_button()` directly.)
+2. `tb_loop_once()` — runs one tick of `tinybit_loop`, internally invoking the C engine's render/audio/input.
+3. Reconstruct `Uint16Array` view over `wasmMemory.buffer` at `tb_display_ptr()`. Expand RGBA4444 → RGBA8888 into a reused `ImageData(128, 128)`. `ctx.putImageData(img, 0, 0)`.
+4. Reconstruct `Int16Array` view over `wasmMemory.buffer` at `tb_audio_ptr()`. Copy + scale to a fresh `Float32Array(367)` (sample / 32768). Transfer the buffer to the worklet via `port.postMessage(buf, [buf])`.
 
 The view-reconstruction step is intentional: any wasm memory `grow` invalidates existing JS typed-array views over `wasmMemory.buffer`, so we never cache the view across frames.
 
 ### Cartridge feed
 
-`index.js` reads the uploaded `File` as `Uint8Array`, slices it into 256-byte chunks (mirroring `cartridge_io.c`'s loop), and calls `feed_cartridge()` per chunk before `start()`. A `false` return at any point aborts the load and surfaces an error.
+`index.js` reads the uploaded `File` as `Uint8Array`, slices it into 256-byte chunks (mirroring `cartridge_io.c`'s loop). For each chunk, JS reconstructs a `Uint8Array` view over wasm memory at `tb_feed_buffer_ptr()`, copies the chunk in, then calls `tb_feed_cartridge(chunk_len)`. A `0` return at any point aborts the load and surfaces an error.
 
 ## Web Frontend
 
@@ -173,21 +187,21 @@ The canvas is 128×128 native, scaled to 512×512 via CSS with `image-rendering:
 
 Responsibilities:
 
-1. Import the wasm-pack bundle: `import init, * as tb from "../pkg/tinybit_wasm.js"; const w = await init({ ...wasiImports });` — passing the WASI shim as imports for the wasi_snapshot_preview1 module.
-2. Cache `wasmMemory = w.memory`, the canvas 2D context, and a reusable `ImageData(128, 128)`.
+1. **Instantiate the wasm module** via `WebAssembly.instantiateStreaming(fetch("./tinybit_wasm.wasm"), { wasi_snapshot_preview1: wasiShim(memoryRef) })`. The shim closes over a `memoryRef` so it can read/write wasm memory once the module is instantiated. After instantiation, set `memoryRef.value = instance.exports.memory`.
+2. Cache `tb = instance.exports`, `wasmMemory = instance.exports.memory`, the canvas 2D context, and a reusable `ImageData(128, 128)`.
 3. **Lazily initialize audio on first cartridge upload** (browsers require a user gesture):
    - `audioCtx = new AudioContext({ sampleRate: 22000 })`
    - `await audioCtx.audioWorklet.addModule("./audio-worklet.js")`
    - Instantiate `AudioWorkletNode(audioCtx, "tinybit")`, connect to `audioCtx.destination`
 4. **File input handler:**
-   - Read bytes
-   - If a game is running: `cancelAnimationFrame`, `tb.stop()`
+   - Read bytes (`Uint8Array`)
+   - If a game is running: `cancelAnimationFrame`, `tb.tb_stop()`
    - `await ensureAudio()`
-   - `tb.init()`
-   - Loop: feed 256-byte chunks via `tb.feed_cartridge`; on `false`, show error and bail
-   - `tb.start()`; on `false`, show error and bail
+   - `tb.tb_init()`
+   - Loop: for each 256-byte chunk, write into the staging buffer view at `tb.tb_feed_buffer_ptr()` and call `tb.tb_feed_cartridge(chunk_len)`. On a `0` return, show error and bail
+   - `tb.tb_start()`; on `0`, show error and bail
    - Start rAF loop
-5. **rAF loop:** `loop_once`, blit display, pump audio, schedule next frame.
+5. **rAF loop:** `tb_loop_once`, blit display, pump audio, schedule next frame.
 6. **Keyboard:** `keydown`/`keyup` on `window` map to button indices. `e.preventDefault()` for arrow keys (page-scroll suppression) and Backspace (browser back-navigation suppression).
 
 ### Key mapping
@@ -254,12 +268,12 @@ Provides the `wasi_snapshot_preview1` import object that wasi-sdk's libc emits. 
 | `clock_time_get`    | Backed by `performance.now()` (monotonic clock) and `Date.now()` (realtime clock)         |
 | `random_get`        | `crypto.getRandomValues` into the wasm memory range                                       |
 | `environ_get` / `environ_sizes_get` | Empty environment                                                         |
-| `fd_read` / `fd_seek` / `fd_close` / `fd_fdstat_get` / `fd_prestat_get` / `fd_prestat_dir_name` / `path_open` | Return `EBADF`. The cartridge is fed via `feed_cartridge`, never via libc file I/O — these should never fire in practice, and a hard error is preferable to silent corruption |
+| `fd_read` / `fd_seek` / `fd_close` / `fd_fdstat_get` / `fd_prestat_get` / `fd_prestat_dir_name` / `path_open` | Return `EBADF`. The cartridge is fed via `tb_feed_cartridge`, never via libc file I/O — these should never fire in practice, and a hard error is preferable to silent corruption |
 
 ## Errors & Edge Cases
 
-- **Invalid cartridge** (`feed_cartridge` or `start` returns `false`): show "Invalid cartridge" in `#err`; do not start the loop.
-- **Re-upload during play:** `cancelAnimationFrame`, `tb.stop()`, then run the upload flow as if fresh.
+- **Invalid cartridge** (`tb_feed_cartridge` or `tb_start` returns `0`): show "Invalid cartridge" in `#err`; do not start the loop.
+- **Re-upload during play:** `cancelAnimationFrame`, `tb.tb_stop()`, then run the upload flow as if fresh.
 - **Audio gesture blocked:** if `AudioContext` cannot start, log a warning and continue; game runs silent.
 - **Tab visibility:** rAF pauses when backgrounded; the worklet drains its ring buffer to silence; on tab return the engine resumes. Brief audio drift is accepted.
 - **Sample-rate mismatch:** if the browser refuses 22 kHz and falls back (typically 48 kHz), log a warning. Pitch will be off; resampling is a non-goal here.
@@ -268,14 +282,14 @@ Provides the `wasi_snapshot_preview1` import object that wasi-sdk's libc emits. 
 
 ## Success Criteria
 
-1. `git clone --recursive`, then `wasm-pack build --target web`, then any static-file server over `tinybit_wasm/` serves a working page.
+1. `git clone --recursive`, then `./scripts/build.sh`, then any static-file server (e.g. `python -m http.server 8000` from the `web/` folder) serves a working page.
 2. Picking `flappy.tb.png` (or `qix.tb.png`, `rocket.tb.png`) from the existing `TinyBit/games/` directory plays the game with both video and audio.
 3. Arrow keys, A, B, Enter, Backspace control the game without page-scroll or back-navigation side effects.
 4. Picking a second cartridge swaps cleanly without page reload.
 
 ## Open Questions / Risks
 
-- **Mixed-target linking.** The Rust crate compiles for `wasm32-unknown-unknown` (required by wasm-bindgen) while the C objects are produced by wasi-sdk for `wasm32-wasi`. Both are wasm32 and lld is generally happy to link them, with WASI imports satisfied by `wasi-shim.js` at instantiation time. If linking fails or produces bad imports, the fallback is to compile the C with `--target=wasm32-unknown-unknown` against a `wasi-libc` sysroot built without WASI ABI assumptions (more work; deferred until needed).
 - **Wasi-sdk binary download in `build.rs`** is convenient but adds a network dependency on first build. Pinning a specific release version + checksum is required. Honoring `WASI_SDK_PATH` lets users (or CI) supply a pre-installed copy.
 - **Lua's libc footprint.** Lua's standard library uses many libc surfaces. Most calls go through wasi-sdk's libc → WASI imports, all handled by the shim. If something Lua-side reaches `fd_read` or `path_open` we'll see a clean `EBADF` error rather than a silent failure, and can decide whether to fix the cartridge data path or extend the shim.
 - **Sample-rate request honored?** If most browsers no longer honor `{ sampleRate: 22000 }` in 2026, we may need a small linear-interpolation resampler in the worklet. Logging on first run will surface this quickly.
+- **`wasm32-wasip1` toolchain availability.** The Rust target name was renamed from `wasm32-wasi` to `wasm32-wasip1` in 2024. CI and contributor environments need `rustup target add wasm32-wasip1`. The README documents this. (`wasm32-wasi` remains as an alias on recent toolchains, but the new name is canonical.)
