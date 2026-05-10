@@ -1,0 +1,5 @@
+/target
+/pkg
+/wasi-sdk
+Cargo.lock
+.DS_Store
