@@ -6,10 +6,11 @@ const wrapStyle: CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    containerType: 'size',
 };
 
 const canvasStyle: CSSProperties = {
-    width: 'min(100% - 16px, calc(100vh - 200px))',
+    width: 'min(calc(100cqw - 16px), calc(100cqh - 16px))',
     aspectRatio: '1 / 1',
     imageRendering: 'pixelated',
     background: '#000',
