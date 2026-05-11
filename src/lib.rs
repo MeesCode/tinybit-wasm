@@ -19,6 +19,8 @@ use encoder::{
     encode as encoder_encode, EncError, AUTHOR_MAX_UTF8, SCRIPT_MAX, TITLE_MAX_UTF8,
 };
 
+use decoder::{decode as decoder_decode, DecError, Decoded, SCRIPT_MAX as DEC_SCRIPT_MAX, PACKED_SPRITE_LEN};
+
 // Slot indices — kept stable, mirrored on the JS side in encoder.js.
 const ENC_SLOT_COVER:  u32 = 0;
 const ENC_SLOT_SPRITE: u32 = 1;
@@ -105,6 +107,64 @@ impl EncoderState {
 
 thread_local! {
     static ENC_STATE: RefCell<Option<EncoderState>> = const { RefCell::new(None) };
+}
+
+// ── Decoder state ────────────────────────────────────────────────────────────
+
+const DEC_INPUT_CAP: usize = 2 * 1024 * 1024;
+
+struct DecoderState {
+    input_buf:      Vec<u8>,                            // up to DEC_INPUT_CAP
+    canvas:         Box<[u8; CART_RGBA_LEN]>,           // 256×256 RGBA scratch
+    packed_sprite:  Box<[u8; PACKED_SPRITE_LEN]>,       // 65_536
+    sprite_rgba:    Box<[u8; SCREEN_RGBA_LEN]>,         // 65_536
+    cover_rgba:     Box<[u8; SCREEN_RGBA_LEN]>,         // 65_536
+    script_buf:     Box<[u8; DEC_SCRIPT_MAX]>,          // 32_621
+    sprite_png_out: Vec<u8>,
+    cover_png_out:  Vec<u8>,
+
+    title_utf8:     Vec<u8>,
+    author_utf8:    Vec<u8>,
+    script_len:     u32,
+    format_version: u16,
+    flags:          u16,
+    game_version:   u16,
+    package_date:   u32,
+    crc_ok:         u8,    // 0/1
+
+    error_msg:      Vec<u8>,
+}
+
+impl DecoderState {
+    fn new() -> Self {
+        Self {
+            input_buf:      vec![0; DEC_INPUT_CAP],
+            canvas:         Box::new([0; CART_RGBA_LEN]),
+            packed_sprite:  Box::new([0; PACKED_SPRITE_LEN]),
+            sprite_rgba:    Box::new([0; SCREEN_RGBA_LEN]),
+            cover_rgba:     Box::new([0; SCREEN_RGBA_LEN]),
+            script_buf:     Box::new([0; DEC_SCRIPT_MAX]),
+            sprite_png_out: Vec::with_capacity(64 * 1024),
+            cover_png_out:  Vec::with_capacity(64 * 1024),
+            title_utf8:     Vec::new(),
+            author_utf8:    Vec::new(),
+            script_len:     0,
+            format_version: 0,
+            flags:          0,
+            game_version:   0,
+            package_date:   0,
+            crc_ok:         0,
+            error_msg:      Vec::new(),
+        }
+    }
+}
+
+thread_local! {
+    static DEC_STATE: RefCell<Option<DecoderState>> = const { RefCell::new(None) };
+}
+
+fn store_dec_error(state: &mut DecoderState, err: &DecError) {
+    state.error_msg = err.message().into_bytes();
 }
 
 const FEED_BUF_SIZE: usize = 256;
@@ -451,4 +511,179 @@ pub extern "C" fn tb_enc_error_len() -> u32 {
         }
     });
     len
+}
+
+// ── Decoder FFI ──────────────────────────────────────────────────────────────
+
+#[no_mangle]
+pub extern "C" fn tb_dec_init() -> u32 {
+    DEC_STATE.with(|cell| {
+        if cell.borrow().is_some() {
+            return 1;
+        }
+        *cell.borrow_mut() = Some(DecoderState::new());
+        1
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_input_ptr() -> *mut u8 {
+    let mut ptr: *mut u8 = core::ptr::null_mut();
+    DEC_STATE.with(|cell| {
+        if let Some(state) = cell.borrow_mut().as_mut() {
+            ptr = state.input_buf.as_mut_ptr();
+        }
+    });
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_input_cap() -> u32 {
+    DEC_INPUT_CAP as u32
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_run(len: u32) -> i32 {
+    let mut result: i32 = -1;
+    DEC_STATE.with(|cell| {
+        let mut borrow = cell.borrow_mut();
+        let Some(state) = borrow.as_mut() else { return; };
+
+        let len = len as usize;
+        if len == 0 || len > state.input_buf.len() {
+            store_dec_error(state, &DecError::CartridgePng("zero or oversized input"));
+            result = DecError::CartridgePng("zero or oversized input").code();
+            return;
+        }
+        let input_owned: Vec<u8> = state.input_buf[..len].to_vec();
+
+        let canvas_mut:        &mut [u8; CART_RGBA_LEN]       = state.canvas.as_mut();
+        let packed_mut:        &mut [u8; PACKED_SPRITE_LEN]   = state.packed_sprite.as_mut();
+        let sprite_rgba_mut:   &mut [u8; SCREEN_RGBA_LEN]     = state.sprite_rgba.as_mut();
+        let cover_rgba_mut:    &mut [u8; SCREEN_RGBA_LEN]     = state.cover_rgba.as_mut();
+        let script_buf_mut:    &mut [u8; DEC_SCRIPT_MAX]      = state.script_buf.as_mut();
+
+        match decoder_decode(
+            &input_owned,
+            canvas_mut, packed_mut, sprite_rgba_mut, cover_rgba_mut, script_buf_mut,
+            &mut state.sprite_png_out, &mut state.cover_png_out,
+        ) {
+            Ok(Decoded { header, script_len, crc_ok }) => {
+                state.error_msg.clear();
+                state.title_utf8     = header.title.into_bytes();
+                state.author_utf8    = header.author.into_bytes();
+                state.script_len     = script_len as u32;
+                state.format_version = header.format_version;
+                state.flags          = header.flags;
+                state.game_version   = header.game_version;
+                state.package_date   = header.package_date;
+                state.crc_ok         = if crc_ok { 1 } else { 0 };
+                result = 0;
+            }
+            Err(e) => {
+                store_dec_error(state, &e);
+                result = e.code();
+            }
+        }
+    });
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_sprite_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.sprite_png_out.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_sprite_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.sprite_png_out.len() as u32; }});
+    n
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_cover_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.cover_png_out.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_cover_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.cover_png_out.len() as u32; }});
+    n
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_script_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.script_buf.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_script_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.script_len; }});
+    n
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_title_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.title_utf8.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_title_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.title_utf8.len() as u32; }});
+    n
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_author_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.author_utf8.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_author_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.author_utf8.len() as u32; }});
+    n
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_meta() -> u64 {
+    let mut packed: u64 = 0;
+    DEC_STATE.with(|cell| {
+        if let Some(s) = cell.borrow().as_ref() {
+            packed = (s.format_version as u64)
+                   | ((s.flags as u64) << 16)
+                   | ((s.game_version as u64) << 32)
+                   | ((s.crc_ok as u64) << 48);
+        }
+    });
+    packed
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_package_date() -> u32 {
+    let mut v: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { v = s.package_date; }});
+    v
+}
+
+#[no_mangle]
+pub extern "C" fn tb_dec_error_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { ptr = s.error_msg.as_ptr(); }});
+    ptr
+}
+#[no_mangle]
+pub extern "C" fn tb_dec_error_len() -> u32 {
+    let mut n: u32 = 0;
+    DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.error_msg.len() as u32; }});
+    n
 }
