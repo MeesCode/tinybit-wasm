@@ -37,6 +37,10 @@ cd ../TinyBit
 ./build/tinybit -c games/flappy.png games/flappy.lua games/flappy_cover.png games/flappy.tb.png
 ```
 
+### Create a cartridge
+
+Open the **"Create a cartridge"** panel below the upload picker. Pick a 128x128 cover PNG, a 128x128 spritesheet PNG, a Lua script, and optional header metadata. Hit **Download .tb.png** to save the cartridge, or **Play now** to feed the encoded bytes directly into the engine without leaving the page. The encoder is built into the same `tinybit_wasm.wasm` — no separate tooling required.
+
 ### Controls
 
 | Key | TinyBit button |
@@ -47,14 +51,15 @@ cd ../TinyBit
 | Enter | START |
 | Backspace | SELECT |
 
-## Smoke test
+## Smoke tests
 
 ```sh
 ./scripts/build.sh
-node scripts/smoke.mjs
+node scripts/smoke.mjs          # existing flappy.tb.png regression
+node scripts/smoke_encoder.mjs  # encoder round-trip + negative case
 ```
 
-Loads the built `.wasm` in Node, supplies a 40-line WASI shim, feeds a real `flappy.tb.png` cartridge, runs 60 frames, and asserts the display contains non-zero pixels. This validates the full pipeline end-to-end except for browser-specific bits (canvas blit, audio worklet, keyboard).
+Loads the built `.wasm` in Node, supplies a 40-line WASI shim, feeds a real `flappy.tb.png` cartridge, runs 60 frames, and asserts the display contains non-zero pixels. This validates the full pipeline end-to-end except for browser-specific bits (canvas blit, audio worklet, keyboard). `smoke_encoder.mjs` encodes a tiny fixture cartridge via the in-wasm encoder, then feeds the bytes back through the decoder and asserts the expected pixel.
 
 ## Layout
 
@@ -86,7 +91,7 @@ JS reads display/audio by constructing typed-array views over wasm memory at the
 ## Limitations
 
 - No game-selector UI; this build only plays cartridges uploaded directly. The selector is a feature of the desktop wrapper.
-- No cartridge export. Use the desktop wrapper's `-c` mode to author cartridges.
+- The browser encoder caps scripts at 32 621 bytes — one less than the desktop encoder's 32 622, to keep the cartridge payload within 65 536 pixels including the trailing NUL.
 - Audio plays at the host `AudioContext` sample rate; if the browser refuses 22 kHz, pitch is off (no resampler is included).
 - Touch and gamepad input are not supported.
 - `os.tmpname()` from Lua is stubbed; cartridges that depend on it will get a no-op temp name.
