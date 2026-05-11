@@ -10,7 +10,7 @@ fi
 
 cargo build --target wasm32-wasip1 --release
 
-mkdir -p web
-cp target/wasm32-wasip1/release/tinybit_wasm.wasm web/tinybit_wasm.wasm
+mkdir -p editor/public
+cp target/wasm32-wasip1/release/tinybit_wasm.wasm editor/public/tinybit_wasm.wasm
 
-echo "Built web/tinybit_wasm.wasm ($(stat -c %s web/tinybit_wasm.wasm) bytes)"
+echo "Built editor/public/tinybit_wasm.wasm ($(stat -c %s editor/public/tinybit_wasm.wasm) bytes)"
