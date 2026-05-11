@@ -87,3 +87,35 @@ export function loadUiLayout<T>(): T | null {
 export function saveUiLayout<T>(v: T): void {
     try { localStorage.setItem(UI_KEY, JSON.stringify(v)); } catch { /* layout is best-effort */ }
 }
+
+export const SPRITE_UI_KEY = 'tinybit-editor/sprite-ui/v1';
+
+export interface PersistedSpriteUi {
+    tool: 'pencil' | 'eraser' | 'fill' | 'eyedropper';
+    pencilSize: 1 | 2 | 3 | 4 | 8;
+    color: number;
+    recent: number[];
+    showGrid: 'auto' | 'on' | 'off';
+    showNumbers: 'auto' | 'on' | 'off';
+}
+
+export function saveSpriteUi(v: PersistedSpriteUi): void {
+    try {
+        localStorage.setItem(SPRITE_UI_KEY, JSON.stringify(v));
+    } catch {
+        /* quota or storage disabled — silent (UI prefs are non-critical) */
+    }
+}
+
+export function loadSpriteUi(): PersistedSpriteUi | null {
+    try {
+        const s = localStorage.getItem(SPRITE_UI_KEY);
+        if (!s) return null;
+        const parsed = JSON.parse(s);
+        if (!parsed || typeof parsed !== 'object') return null;
+        if (typeof parsed.tool !== 'string' || typeof parsed.pencilSize !== 'number') return null;
+        return parsed as PersistedSpriteUi;
+    } catch {
+        return null;
+    }
+}
