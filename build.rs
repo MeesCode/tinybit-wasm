@@ -13,6 +13,15 @@ fn main() {
     // Watch all C source and header files in the submodule for changes
     println!("cargo:rerun-if-changed=src/tinybit");
 
+    // Skip C compilation when building for a native host target (e.g. `cargo
+    // test --target x86_64-unknown-linux-gnu`). The C engine only runs in the
+    // wasm32 environment; the pure-Rust encoder sub-crate must be testable
+    // without a WASI toolchain present.
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    if target_arch != "wasm32" {
+        return;
+    }
+
     let sdk = ensure_wasi_sdk();
     require_submodule();
     compile_c(&sdk);
