@@ -55,10 +55,24 @@ export function App() {
             sketch.setScript(stored.script);
             sketch.setTitle(stored.title);
             sketch.setAuthor(stored.author);
-            sketch.setSprite(stored.sprite);
+            if (stored.sprite) {
+                void sketch.setSpriteFromPng(stored.sprite).catch((err) => {
+                    consoleAppend('warn', `Failed to decode persisted sprite: ${err instanceof Error ? err.message : String(err)}`);
+                });
+            }
             sketch.setCover(stored.cover);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Live-mirror painted pixels into the engine's spritesheet while running.
+    useEffect(() => {
+        if (!runtime) return;
+        return useSketchStore.subscribe((s, prev) => {
+            if (s.spritePixels && s.spritePixels !== prev.spritePixels) {
+                runtime.spritesheet.fullReload(s.spritePixels);
+            }
+        });
+    }, [runtime]);
 
     useEffect(() => {
         saveSketchDebounced(
