@@ -28,7 +28,7 @@ test('encode + play paints a non-empty canvas', async ({ page }) => {
     await page.getByTestId('cover-input').setInputFiles(join(__dirname, '..', 'fixtures', 'cover-128.png'));
 
     // Replace the default script with one that lights pixel (10,10).
-    await page.getByRole('tab', { name: /script\.lua/i }).click();
+    await page.getByRole('tab', { name: /script/i }).click();
     const editorEl = page.locator('.cm-content');
     await editorEl.click();
     await page.keyboard.press('Control+A');

@@ -33,7 +33,7 @@ test.describe('cartridge upload', () => {
         await expect(page.getByLabel('Author', { exact: true })).toHaveValue('e2e');
 
         // Switch to script tab and verify the script was loaded.
-        await page.getByRole('tab', { name: /script\.lua/i }).click();
+        await page.getByRole('tab', { name: /script/i }).click();
         await expect(page.locator('.cm-content')).toContainText('pset(10, 10, 0xFFFF)');
 
         // Download the cartridge and confirm we get bytes back.

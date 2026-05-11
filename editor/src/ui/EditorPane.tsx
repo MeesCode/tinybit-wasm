@@ -50,7 +50,7 @@ export function EditorPane({ active, onChange, children }: EditorPaneProps) {
                         type="button"
                         onClick={() => onChange(t)}
                         style={tabStyle(active === t)}>
-                        {t === 'script' ? 'script.lua' : t === 'alt' ? 'alt' : 'cartridge'}
+                        {t === 'script' ? 'script' : t === 'alt' ? 'spritesheet' : 'cartridge'}
                     </button>
                 ))}
             </div>

@@ -19,7 +19,7 @@ test.describe('spritesheet editor', () => {
         await page.waitForFunction(() => 'useSketchStore' in window && 'useSpriteEditorStore' in window);
 
         // Write a Lua script that copies sprite cell (5,5) to display pixel (5,5).
-        await page.getByRole('tab', { name: /script\.lua/i }).click();
+        await page.getByRole('tab', { name: /script/i }).click();
         const editor = page.locator('.cm-content');
         await editor.click();
         await page.keyboard.press('Control+A');
