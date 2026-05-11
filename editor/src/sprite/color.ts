@@ -67,9 +67,9 @@ export function hexToRgba(hex: string): number | null {
     const m = /^#?([0-9a-f]{6}|[0-9a-f]{8})$/i.exec(hex.trim());
     if (!m) return null;
     const s = m[1];
-    const r = parseInt(s.slice(0,2), 16);
-    const g = parseInt(s.slice(2,4), 16);
-    const b = parseInt(s.slice(4,6), 16);
-    const a = s.length === 8 ? parseInt(s.slice(6,8), 16) : 0xFF;
+    const r = snapRgba8(parseInt(s.slice(0,2), 16));
+    const g = snapRgba8(parseInt(s.slice(2,4), 16));
+    const b = snapRgba8(parseInt(s.slice(4,6), 16));
+    const a = snapRgba8(s.length === 8 ? parseInt(s.slice(6,8), 16) : 0xFF);
     return packRgba8(r, g, b, a);
 }
