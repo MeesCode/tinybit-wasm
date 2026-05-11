@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { useSketchStore, DEFAULT_SCRIPT } from './sketchStore';
+import { encodePixelsToPng } from '../sprite/png';
 
 beforeEach(() => useSketchStore.getState().reset());
 
@@ -52,5 +53,44 @@ describe('sketchStore', () => {
         expect(s.sprite).toBe(sprite);
         expect(s.cover).toBe(cover);
         expect(s.script).toBe('function _draw() end');
+    });
+});
+
+describe('sketchStore — spritePixels', () => {
+    test('starts null', () => {
+        expect(useSketchStore.getState().spritePixels).toBeNull();
+    });
+
+    test('setSpriteFromPng populates sprite and spritePixels atomically', async () => {
+        const pixels = new Uint8Array(128 * 128 * 4);
+        for (let i = 0; i < pixels.length; i += 4) {
+            pixels[i] = 0xFF; pixels[i + 3] = 0xFF;
+        }
+        const png = await encodePixelsToPng(pixels);
+        await useSketchStore.getState().setSpriteFromPng(png);
+        const s = useSketchStore.getState();
+        expect(s.sprite).toBe(png);
+        expect(s.spritePixels).not.toBeNull();
+        expect(s.spritePixels!.length).toBe(128 * 128 * 4);
+        expect(s.spritePixels![0]).toBe(0xFF);
+    });
+
+    test('setSpritePixel mutates the buffer and replaces the view identity', () => {
+        const buf = new Uint8Array(128 * 128 * 4);
+        useSketchStore.setState({ spritePixels: buf });
+        const before = useSketchStore.getState().spritePixels;
+        useSketchStore.getState().setSpritePixel(0, 0, 0xFF00FF00);
+        const after = useSketchStore.getState().spritePixels!;
+        expect(after).not.toBe(before);
+        expect(after.buffer).toBe(buf.buffer);
+        expect(after[0]).toBe(0xFF);
+    });
+
+    test('clearSprite clears both sprite and spritePixels', () => {
+        useSketchStore.setState({ sprite: new Uint8Array([1,2,3]), spritePixels: new Uint8Array(128 * 128 * 4) });
+        useSketchStore.getState().clearSprite();
+        const s = useSketchStore.getState();
+        expect(s.sprite).toBeNull();
+        expect(s.spritePixels).toBeNull();
     });
 });
