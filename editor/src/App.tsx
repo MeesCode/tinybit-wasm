@@ -167,6 +167,8 @@ export function App() {
             if (pu) consoleAppend('error', 'Decoder not available in this WASM build.');
             return;
         }
+        frameLoopRef.current?.stop();
+        runtime.tb.stop();
         try {
             const result = runtime.dec.decode(pu.bytes);
             sketch.loadCartridge({
