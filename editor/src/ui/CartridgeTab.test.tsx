@@ -24,7 +24,7 @@ describe('CartridgeTab', () => {
 
     test('valid 128x128 sprite upload commits bytes to the store', async () => {
         render(<CartridgeTab />);
-        const file = new File([pngBytes(128, 128)], 'sprite.png', { type: 'image/png' });
+        const file = new File([pngBytes(128, 128) as BlobPart], 'sprite.png', { type: 'image/png' });
         Object.defineProperty(file, 'arrayBuffer', { value: () => Promise.resolve(file.size === 0 ? new ArrayBuffer(0) : new Uint8Array(pngBytes(128, 128)).buffer) });
         const input = screen.getByTestId('sprite-input') as HTMLInputElement;
         await fireEvent.change(input, { target: { files: [file] } });
@@ -35,7 +35,7 @@ describe('CartridgeTab', () => {
 
     test('64x64 sprite upload shows an error and does not commit', async () => {
         render(<CartridgeTab />);
-        const bad = new File([pngBytes(64, 64)], 'bad.png', { type: 'image/png' });
+        const bad = new File([pngBytes(64, 64) as BlobPart], 'bad.png', { type: 'image/png' });
         Object.defineProperty(bad, 'arrayBuffer', { value: () => Promise.resolve(new Uint8Array(pngBytes(64, 64)).buffer) });
         const input = screen.getByTestId('sprite-input') as HTMLInputElement;
         await fireEvent.change(input, { target: { files: [bad] } });

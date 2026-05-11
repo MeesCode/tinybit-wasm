@@ -18,7 +18,7 @@ interface SlotProps {
 }
 
 function AssetSlot({ label, bytes, onPick, error, inputTestId }: SlotProps) {
-    const url = bytes ? URL.createObjectURL(new Blob([bytes], { type: 'image/png' })) : null;
+    const url = bytes ? URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'image/png' })) : null;
     return (
         <div style={slotStyle}>
             <label style={fieldStyle}>{label} <span style={{ color: '#A0A0AA', fontWeight: 400 }}>(128×128 PNG)</span></label>
