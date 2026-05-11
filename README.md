@@ -43,6 +43,12 @@ cd editor && npm run build
 
 Open the **Cartridge** tab in the editor's left pane. Pick a 128×128 spritesheet PNG and (optionally) a 128×128 cover PNG, and set the title/author. Hit **▶ Play** to encode and run the cartridge in-page, or **⬇ Download** to save the cartridge to disk. The encoder is built into the same `tinybit_wasm.wasm` — no separate tooling required.
 
+### Open an existing cartridge
+
+Click **📂 Open** in the toolbar (or drag a `.tb.png` anywhere onto the editor window). After confirming the replace prompt, the title, author, spritesheet, cover, and script are extracted from the cartridge and loaded into the editor. The decoder rejects non-256×256 PNGs and cartridges whose `format_version` isn't 1.
+
+Round-tripping is near-lossless: cartridges only store the top 4 bits per spritesheet channel and the top 6 bits per cover channel, so what comes out of decode is what the original encode stored — re-encoding without edits is a no-op modulo `package_date`.
+
 ### Controls
 
 | Key | TinyBit button |
@@ -59,6 +65,7 @@ Open the **Cartridge** tab in the editor's left pane. Pick a 128×128 spriteshee
 - `cd editor && npm run test:e2e` — Playwright smoke (boot + encode + play)
 - `node scripts/smoke.mjs`        — engine-level Node smoke (player path)
 - `node scripts/smoke_encoder.mjs` — engine-level Node smoke (encoder round-trip)
+- `node scripts/smoke_decoder.mjs` — engine-level Node smoke (decoder round-trip + truncation)
 
 ## Smoke tests
 
@@ -66,6 +73,7 @@ Open the **Cartridge** tab in the editor's left pane. Pick a 128×128 spriteshee
 ./scripts/build.sh
 node scripts/smoke.mjs          # existing flappy.tb.png regression
 node scripts/smoke_encoder.mjs  # encoder round-trip + negative case
+node scripts/smoke_decoder.mjs  # decoder round-trip + truncation
 ```
 
 Loads the built `.wasm` in Node, supplies a 40-line WASI shim, feeds a real `flappy.tb.png` cartridge, runs 60 frames, and asserts the display contains non-zero pixels. This validates the full pipeline end-to-end except for browser-specific bits (canvas blit, audio worklet, keyboard). `smoke_encoder.mjs` encodes a tiny fixture cartridge via the in-wasm encoder, then feeds the bytes back through the decoder and asserts the expected pixel.
