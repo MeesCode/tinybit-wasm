@@ -82,6 +82,7 @@ export function App() {
                 fl.onStateChange(setEngineState);
                 fl.onError((msg) => consoleAppend('error', msg));
                 frameLoopRef.current = fl;
+                rt.spritesheet.setRunningPredicate(() => fl.state() === 'running');
             })
             .catch((err) => {
                 const msg = err instanceof Error ? err.message : String(err);
@@ -244,6 +245,10 @@ export function App() {
         try {
             rt.tb.init();
             rt.tb.feedCartridge(bytes);
+            // Overwrite the cartridge's spritesheet with the live edited buffer so
+            // edits made before Play take effect from frame 0.
+            const pixels = useSketchStore.getState().spritePixels;
+            if (pixels) rt.spritesheet.fullReload(pixels);
             rt.tb.start();
             await fl.start(canvas);
         } catch (err) {
