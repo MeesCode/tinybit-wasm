@@ -95,7 +95,7 @@ export function SpriteEditor() {
     }
 
     function handlePointer(...args: Parameters<PointerCb>): void {
-        const [type, px, py] = args;
+        const [type, px, py, mods] = args;
         const sketch = useSketchStore.getState();
         const buf = sketch.spritePixels;
         if (!buf) return;
@@ -103,6 +103,8 @@ export function SpriteEditor() {
 
         if (type === 'down') {
             if (px < 0) return;
+            // Only the left button paints. Middle drives pan; right is reserved.
+            if (mods.button !== 0) return;
             baselineRef.current = new Uint8Array(buf);
             dirtyRef.current = { x: px, y: py, w: 1, h: 1 };
             applyTool(ed.tool, buf, px, py, true);
@@ -207,7 +209,7 @@ export function SpriteEditor() {
     }
 
     return (
-        <div ref={rootRef} tabIndex={0} style={root} onKeyDown={handleKey} onMouseDownCapture={onMouseDownCapture} onWheel={onWheel}>
+        <div ref={rootRef} tabIndex={0} style={root} onKeyDown={handleKey} onMouseDownCapture={onMouseDownCapture} onWheel={onWheel} onContextMenu={(e) => e.preventDefault()}>
             <div style={railCell}><ToolRail /></div>
             <div style={canvasCell}><PixelCanvas onPointer={handlePointer} /></div>
             <div style={bottomCell}><ColorPanel /></div>
