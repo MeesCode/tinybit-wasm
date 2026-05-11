@@ -25,6 +25,7 @@ export interface SpriteEditorState {
     setZoom(z: Zoom, anchor?: { sx: number; sy: number; canvasW: number; canvasH: number }): void;
     setPan(p: { x: number; y: number }): void;
     setColor(rgba: number): void;
+    setColorTransient(rgba: number): void;
     setOverlay(which: 'grid' | 'numbers', mode: OverlayMode): void;
     pushPatch(p: Patch): void;
     undo(apply: (p: Patch) => void): void;
@@ -65,6 +66,11 @@ export const useSpriteEditorStore = create<SpriteEditorState>((set, get) => {
             const snapped = (snapAllChannels(rgba) >>> 0);
             const recent = [snapped, ...get().recent.filter((c) => c !== snapped)].slice(0, RECENT_CAP);
             set({ color: snapped, recent });
+        },
+        // Like setColor but doesn't push to the recent ring — used by continuous
+        // controls (e.g. alpha slider) that would otherwise spam the history.
+        setColorTransient(rgba) {
+            set({ color: (snapAllChannels(rgba) >>> 0) });
         },
         setOverlay(which, mode) {
             set(which === 'grid' ? { showGrid: mode } : { showNumbers: mode });

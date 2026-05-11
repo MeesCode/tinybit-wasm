@@ -1,6 +1,45 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useSpriteEditorStore, type Tool, type PencilSize } from '../state/spriteEditorStore';
 import { nextZoom, prevZoom } from './viewport';
+
+const svgProps = {
+    width: 18, height: 18, viewBox: '0 0 24 24',
+    fill: 'none', stroke: 'currentColor', strokeWidth: 2,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+    'aria-hidden': true as const,
+};
+
+const PencilGlyph = (
+    <svg {...svgProps}>
+        <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+        <path d="m15 5 4 4"/>
+    </svg>
+);
+
+const EraserGlyph = (
+    <svg {...svgProps}>
+        <path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21"/>
+        <path d="M22 21H7"/>
+        <path d="m5 11 9 9"/>
+    </svg>
+);
+
+const FillGlyph = (
+    <svg {...svgProps}>
+        <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/>
+        <path d="m5 2 5 5"/>
+        <path d="M2 13h15"/>
+        <path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/>
+    </svg>
+);
+
+const EyedropperGlyph = (
+    <svg {...svgProps}>
+        <path d="m2 22 1-1h3l9-9"/>
+        <path d="M3 21v-3l9-9"/>
+        <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/>
+    </svg>
+);
 
 const SIZES: PencilSize[] = [1, 2, 3, 4, 8];
 
@@ -25,16 +64,16 @@ function prevSize(s: PencilSize): PencilSize {
 export function ToolRail() {
     const { tool, pencilSize, zoom, setTool, setPencilSize, setZoom } = useSpriteEditorStore();
 
-    const toolBtn = (id: Tool, label: string, glyph: string) => (
+    const toolBtn = (id: Tool, label: string, glyph: ReactNode) => (
         <button type="button" key={id} aria-label={label} title={label} onClick={() => setTool(id)} style={btnStyle(tool === id)}>{glyph}</button>
     );
 
     return (
         <div style={railStyle} role="toolbar">
-            {toolBtn('pencil',     'Pencil',     '✎')}
-            {toolBtn('eraser',     'Eraser',     '⌫')}
-            {toolBtn('fill',       'Fill',       '🪣')}
-            {toolBtn('eyedropper', 'Eyedropper', '💧')}
+            {toolBtn('pencil',     'Pencil',     PencilGlyph)}
+            {toolBtn('eraser',     'Eraser',     EraserGlyph)}
+            {toolBtn('fill',       'Fill',       FillGlyph)}
+            {toolBtn('eyedropper', 'Eyedropper', EyedropperGlyph)}
             <div style={dividerStyle} />
             <button type="button" aria-label="Increase pencil size" onClick={() => setPencilSize(nextSize(pencilSize))} style={btnStyle(false)}>+</button>
             <div style={{ fontSize: 11, color: '#181820' }}>{pencilSize}</div>

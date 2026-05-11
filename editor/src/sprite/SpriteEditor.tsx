@@ -8,11 +8,18 @@ import { stampBrush, drawLine, floodFill, readPixel } from './tools';
 import { nextZoom, prevZoom } from './viewport';
 import { encodePixelsToPng } from './png';
 
-const root: CSSProperties = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, outline: 'none' };
-const topRow: CSSProperties = { display: 'flex', flex: '1 1 auto', minHeight: 0 };
-const railCell: CSSProperties = { flexShrink: 0 };
-const canvasCell: CSSProperties = { flex: '1 1 auto', minWidth: 0, minHeight: 0 };
-const bottomCell: CSSProperties = { flexShrink: 0 };
+const root: CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(0, 1fr)',
+    gridTemplateRows: 'minmax(0, 1fr) max-content',
+    height: '100%',
+    minHeight: 0,
+    outline: 'none',
+    overflow: 'hidden',
+};
+const railCell:   CSSProperties = { gridColumn: '1 / 2', gridRow: '1 / 2', minHeight: 0 };
+const canvasCell: CSSProperties = { gridColumn: '2 / 3', gridRow: '1 / 2', minWidth: 0, minHeight: 0, overflow: 'hidden' };
+const bottomCell: CSSProperties = { gridColumn: '1 / 3', gridRow: '2 / 3' };
 
 const SIZE_LIST: PencilSize[] = [1, 2, 3, 4, 8];
 
@@ -211,10 +218,8 @@ export function SpriteEditor() {
 
     return (
         <div ref={rootRef} tabIndex={0} style={root} onKeyDown={handleKey} onMouseDownCapture={onMouseDownCapture} onWheel={onWheel} onContextMenu={(e) => e.preventDefault()}>
-            <div style={topRow}>
-                <div style={railCell}><ToolRail /></div>
-                <div style={canvasCell}><PixelCanvas onPointer={handlePointer} /></div>
-            </div>
+            <div style={railCell}><ToolRail /></div>
+            <div style={canvasCell}><PixelCanvas onPointer={handlePointer} /></div>
             <div style={bottomCell}><ColorPanel /></div>
         </div>
     );

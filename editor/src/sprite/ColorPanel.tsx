@@ -10,7 +10,7 @@ const swatch = (rgba: number): CSSProperties => ({
 });
 
 export function ColorPanel() {
-    const { color, recent, setColor } = useSpriteEditorStore();
+    const { color, recent, setColor, setColorTransient } = useSpriteEditorStore();
     const [draft, setDraft] = useState(rgbaToHex(color));
     const focusedRef = useRef(false);
 
@@ -50,7 +50,8 @@ export function ColorPanel() {
                     aria-label="Alpha"
                     type="range" min={0} max={255}
                     value={u.a}
-                    onChange={(e) => setColor(packRgba8(u.r, u.g, u.b, Number(e.target.value)))}
+                    onChange={(e) => setColorTransient(packRgba8(u.r, u.g, u.b, Number(e.target.value)))}
+                    onPointerUp={() => setColor(useSpriteEditorStore.getState().color)}
                 />
             </label>
             <div style={{ display: 'flex', gap: 6 }}>
