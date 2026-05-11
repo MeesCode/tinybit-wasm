@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
+import { useSpriteEditorStore } from './state/spriteEditorStore';
 import { loadSketch, saveSketchDebounced } from './state/persist';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
@@ -20,6 +21,11 @@ import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
+
+if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
+    (window as unknown as Record<string, unknown>).useSketchStore = useSketchStore;
+    (window as unknown as Record<string, unknown>).useSpriteEditorStore = useSpriteEditorStore;
+}
 
 const dropOverlayStyle: CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 9998,
@@ -55,10 +61,24 @@ export function App() {
             sketch.setScript(stored.script);
             sketch.setTitle(stored.title);
             sketch.setAuthor(stored.author);
-            sketch.setSprite(stored.sprite);
+            if (stored.sprite) {
+                void sketch.setSpriteFromPng(stored.sprite).catch((err) => {
+                    consoleAppend('warn', `Failed to decode persisted sprite: ${err instanceof Error ? err.message : String(err)}`);
+                });
+            }
             sketch.setCover(stored.cover);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Live-mirror painted pixels into the engine's spritesheet while running.
+    useEffect(() => {
+        if (!runtime) return;
+        return useSketchStore.subscribe((s, prev) => {
+            if (s.spritePixels && s.spritePixels !== prev.spritePixels) {
+                runtime.spritesheet.fullReload(s.spritePixels);
+            }
+        });
+    }, [runtime]);
 
     useEffect(() => {
         saveSketchDebounced(
@@ -82,6 +102,7 @@ export function App() {
                 fl.onStateChange(setEngineState);
                 fl.onError((msg) => consoleAppend('error', msg));
                 frameLoopRef.current = fl;
+                rt.spritesheet.setRunningPredicate(() => fl.state() === 'running');
             })
             .catch((err) => {
                 const msg = err instanceof Error ? err.message : String(err);
@@ -244,6 +265,10 @@ export function App() {
         try {
             rt.tb.init();
             rt.tb.feedCartridge(bytes);
+            // Overwrite the cartridge's spritesheet with the live edited buffer so
+            // edits made before Play take effect from frame 0.
+            const pixels = useSketchStore.getState().spritePixels;
+            if (pixels) rt.spritesheet.fullReload(pixels);
             rt.tb.start();
             await fl.start(canvas);
         } catch (err) {

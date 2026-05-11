@@ -12,6 +12,7 @@ export interface TinybitExports {
     tb_feed_buffer_ptr(): number;
     tb_feed_cartridge(len: number): number;
     tb_display_ptr(): number;
+    tb_spritesheet_ptr(): number;
     tb_audio_ptr(): number;
 }
 

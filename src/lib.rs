@@ -332,6 +332,17 @@ pub extern "C" fn tb_audio_ptr() -> *const i16 {
     ptr
 }
 
+#[no_mangle]
+pub extern "C" fn tb_spritesheet_ptr() -> *mut u8 {
+    let mut ptr: *mut u8 = core::ptr::null_mut();
+    STATE.with(|cell| {
+        if let Some(state) = cell.borrow_mut().as_mut() {
+            ptr = state.memory.spritesheet.as_mut_ptr() as *mut u8;
+        }
+    });
+    ptr
+}
+
 // ── Encoder FFI ──────────────────────────────────────────────────────────────
 
 #[no_mangle]

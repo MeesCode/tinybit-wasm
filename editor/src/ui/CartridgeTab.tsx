@@ -49,20 +49,32 @@ function AssetSlot({ label, bytes, onPick, error, inputTestId }: SlotProps) {
 }
 
 export function CartridgeTab() {
-    const { title, author, sprite, cover, setTitle, setAuthor, setSprite, setCover } = useSketchStore();
+    const { title, author, sprite, cover, setTitle, setAuthor, setSpriteFromPng, setCover } = useSketchStore();
     const [spriteErr, setSpriteErr] = useState<string | null>(null);
     const [coverErr,  setCoverErr]  = useState<string | null>(null);
 
-    const handleAsset = (raw: Uint8Array, setErr: (e: string | null) => void, setBytes: (b: Uint8Array | null) => void) => {
+    const handleSprite = async (raw: Uint8Array) => {
         const size = readPngSize(raw);
-        if (!size) { setErr('Not a valid PNG.'); setBytes(null); return; }
+        if (!size) { setSpriteErr('Not a valid PNG.'); return; }
         if (size.width !== 128 || size.height !== 128) {
-            setErr(`Must be 128×128 (got ${size.width}×${size.height}).`);
-            setBytes(null);
+            setSpriteErr(`Must be 128×128 (got ${size.width}×${size.height}).`);
             return;
         }
-        setErr(null);
-        setBytes(raw);
+        setSpriteErr(null);
+        try { await setSpriteFromPng(raw); }
+        catch (e) { setSpriteErr((e as Error).message); }
+    };
+
+    const handleCover = (raw: Uint8Array) => {
+        const size = readPngSize(raw);
+        if (!size) { setCoverErr('Not a valid PNG.'); setCover(null); return; }
+        if (size.width !== 128 || size.height !== 128) {
+            setCoverErr(`Must be 128×128 (got ${size.width}×${size.height}).`);
+            setCover(null);
+            return;
+        }
+        setCoverErr(null);
+        setCover(raw);
     };
 
     return (
@@ -78,14 +90,14 @@ export function CartridgeTab() {
             <AssetSlot
                 label="Spritesheet"
                 bytes={sprite}
-                onPick={(b) => handleAsset(b, setSpriteErr, setSprite)}
+                onPick={(b) => void handleSprite(b)}
                 error={spriteErr}
                 inputTestId="sprite-input"
             />
             <AssetSlot
                 label="Cover image"
                 bytes={cover}
-                onPick={(b) => handleAsset(b, setCoverErr, setCover)}
+                onPick={handleCover}
                 error={coverErr}
                 inputTestId="cover-input"
             />

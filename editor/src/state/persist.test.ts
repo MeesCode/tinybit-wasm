@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { loadSketch, saveSketch, SKETCH_KEY } from './persist';
+import { loadSketch, saveSketch, SKETCH_KEY, loadSpriteUi, saveSpriteUi, SPRITE_UI_KEY } from './persist';
 import { DEFAULT_SCRIPT } from './sketchStore';
 
 beforeEach(() => localStorage.clear());
@@ -35,5 +35,30 @@ describe('persist', () => {
         saveSketch({ script: DEFAULT_SCRIPT, sprite: null, cover: null, title: '', author: '' }, sink);
         expect(sink).toHaveBeenCalled();
         spy.mockRestore();
+    });
+});
+
+describe('sprite-ui persistence', () => {
+    beforeEach(() => localStorage.clear());
+
+    test('save/load round-trip', () => {
+        saveSpriteUi({ tool: 'fill', pencilSize: 4, color: 0xF0A0B0C0, recent: [0xFF0000FF, 0x00FF00FF], showGrid: 'on', showNumbers: 'off' });
+        expect(loadSpriteUi()).toEqual({ tool: 'fill', pencilSize: 4, color: 0xF0A0B0C0, recent: [0xFF0000FF, 0x00FF00FF], showGrid: 'on', showNumbers: 'off' });
+    });
+
+    test('load returns null on missing key', () => {
+        expect(loadSpriteUi()).toBeNull();
+    });
+
+    test('load tolerates malformed JSON', () => {
+        localStorage.setItem(SPRITE_UI_KEY, 'not json');
+        expect(loadSpriteUi()).toBeNull();
+    });
+
+    test('save survives quota errors silently', () => {
+        const orig = Storage.prototype.setItem;
+        Storage.prototype.setItem = () => { throw new DOMException('quota', 'QuotaExceededError'); };
+        expect(() => saveSpriteUi({ tool: 'pencil', pencilSize: 1, color: 0, recent: [], showGrid: 'auto', showNumbers: 'auto' })).not.toThrow();
+        Storage.prototype.setItem = orig;
     });
 });

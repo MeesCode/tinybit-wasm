@@ -2,6 +2,7 @@ import { makeWasiShim, type MemoryRef, type WasiSinks } from './wasiShim';
 import { makeTinybit, type Tinybit, type TinybitExports } from './tinybit';
 import { makeEncoder, type Encoder, type EncoderExports } from './encoder';
 import { makeDecoder, type Decoder, type DecoderExports } from './decoder';
+import { makeSpritesheet, type Spritesheet } from './spritesheet';
 
 export interface Runtime {
     wasm: WebAssembly.Instance;
@@ -11,6 +12,7 @@ export interface Runtime {
     encoderAvailable: boolean;
     dec: Decoder;
     decoderAvailable: boolean;
+    spritesheet: Spritesheet;
 }
 
 const WASM_URL = './tinybit_wasm.wasm';
@@ -34,6 +36,12 @@ async function bootRuntime(sinks: WasiSinks): Promise<Runtime> {
 
     const tb = makeTinybit(exports);
 
+    const spritesheet = makeSpritesheet({
+        memory: exports.memory,
+        ptr: () => (exports as TinybitExports).tb_spritesheet_ptr(),
+        isRunning: () => false,
+    });
+
     const encoderAvailable =
         typeof exports.tb_enc_init === 'function' &&
         typeof exports.tb_enc_run === 'function';
@@ -50,7 +58,7 @@ async function bootRuntime(sinks: WasiSinks): Promise<Runtime> {
 
     return {
         wasm: wasm.instance, memory: exports.memory, tb,
-        enc, encoderAvailable, dec, decoderAvailable,
+        enc, encoderAvailable, dec, decoderAvailable, spritesheet,
     };
 }
 
