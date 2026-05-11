@@ -52,6 +52,8 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
                 luaLang(),
                 syntaxHighlighting(bubblegum),
                 editorTheme,
+                EditorState.allowMultipleSelections.of(true),
+                EditorView.clickAddsSelectionRange.of((e) => e.ctrlKey || e.metaKey),
                 keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
                 EditorView.updateListener.of((u) => {
                     if (u.docChanged) onChangeRef.current(u.state.doc.toString());
