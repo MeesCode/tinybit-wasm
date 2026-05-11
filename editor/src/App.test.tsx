@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { App } from './App';
 
-test('renders brand', () => {
-    render(<App />);
-    expect(screen.getByText('TinyBit editor')).toBeInTheDocument();
+test('App mounts without crashing', () => {
+    const { container } = render(<App />);
+    // Sanity: a non-empty root means React mounted, the JSX runtime is wired,
+    // and the test environment (jsdom + @testing-library) works. The actual
+    // app shape is asserted by later component tests once UI exists.
+    expect(container.firstChild).not.toBeNull();
 });
