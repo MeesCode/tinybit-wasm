@@ -86,7 +86,6 @@ export function SpriteEditor() {
     }
 
     function onWheel(e: React.WheelEvent<HTMLDivElement>) {
-        if (!(e.ctrlKey || e.metaKey)) return;
         e.preventDefault();
         const ed = useSpriteEditorStore.getState();
         const target = e.deltaY < 0 ? nextZoom(ed.zoom) : prevZoom(ed.zoom);
