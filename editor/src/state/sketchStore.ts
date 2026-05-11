@@ -17,6 +17,7 @@ export interface SketchState {
     setCover(v: Uint8Array | null): void;
     setTitle(v: string): void;
     setAuthor(v: string): void;
+    loadCartridge(parts: { title: string; author: string; sprite: Uint8Array; cover: Uint8Array; script: string }): void;
     reset(): void;
 }
 
@@ -35,5 +36,12 @@ export const useSketchStore = create<SketchState>((set) => ({
     setCover:  (v) => set({ cover: v }),
     setTitle:  (v) => set({ title: v }),
     setAuthor: (v) => set({ author: v }),
+    loadCartridge: (parts) => set({
+        title:  parts.title,
+        author: parts.author,
+        sprite: parts.sprite,
+        cover:  parts.cover,
+        script: parts.script,
+    }),
     reset: () => set({ ...initial }),
 }));

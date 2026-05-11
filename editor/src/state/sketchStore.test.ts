@@ -35,4 +35,22 @@ describe('sketchStore', () => {
         expect(s.sprite).toBeNull();
         expect(s.title).toBe('');
     });
+
+    test('loadCartridge sets all five fields atomically', () => {
+        const sprite = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+        const cover  = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d]);
+        useSketchStore.getState().loadCartridge({
+            title:  'demo',
+            author: 'alice',
+            sprite,
+            cover,
+            script: 'function _draw() end',
+        });
+        const s = useSketchStore.getState();
+        expect(s.title).toBe('demo');
+        expect(s.author).toBe('alice');
+        expect(s.sprite).toBe(sprite);
+        expect(s.cover).toBe(cover);
+        expect(s.script).toBe('function _draw() end');
+    });
 });
