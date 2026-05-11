@@ -1,16 +1,16 @@
 # tinybit_wasm
 
-A Rust + WebAssembly wrapper around the [tinybit](https://github.com/MeesCode/TinyBit-lib) virtual console. Upload a `.tb.png` cartridge in your browser; the game starts playing immediately, with video, audio, and keyboard input.
+A Rust + WebAssembly wrapper around the [tinybit](https://github.com/MeesCode/TinyBit-lib) virtual console, plus a browser-based editor that lets you write Lua, attach a 128×128 spritesheet, and play the result in-page.
 
 The C engine (Lua VM, PNG decoder, ABC audio parser) is consumed unmodified as a git submodule. Both Rust and the C engine compile to `wasm32-wasip1` via wasi-sdk; no `wasm-bindgen` or `wasm-pack` are involved.
 
-See `docs/superpowers/specs/2026-05-10-tinybit-wasm-design.md` for the full design and `docs/superpowers/plans/2026-05-10-tinybit-wasm.md` for the implementation plan.
+See `docs/superpowers/specs/2026-05-10-tinybit-wasm-design.md` for the player design, `docs/superpowers/specs/2026-05-11-tb-encoder-design.md` for the encoder design, and `docs/superpowers/specs/2026-05-11-editor-ui-design.md` for the browser editor.
 
 ## Prerequisites
 
 - Linux x86_64 host (other hosts: install wasi-sdk-25 manually and set `WASI_SDK_PATH`)
 - Rust 1.95+ (the `wasm32-wasip1` target is auto-installed via `rust-toolchain.toml`)
-- Node.js 22+ (for the smoke test only)
+- Node.js 22+ (smoke tests + the editor's Vite dev server)
 - `curl` and `tar` on `$PATH` (used by `build.rs` to fetch wasi-sdk on first build)
 
 ## Build
@@ -20,26 +20,28 @@ git submodule update --init --recursive
 ./scripts/build.sh
 ```
 
-The first build downloads wasi-sdk-25 (~150 MB) into `target/wasi-sdk/`. Subsequent builds reuse it. The output is `web/tinybit_wasm.wasm`.
+The first build downloads wasi-sdk-25 (~150 MB) into `target/wasi-sdk/`. Subsequent builds reuse it. The output is `editor/public/tinybit_wasm.wasm`.
 
-## Play in a browser
+## Run the editor
+
+The browser editor lets you write Lua, attach a 128×128 PNG spritesheet (and optional cover), play in-browser, and download the encoded `.tb.png` cartridge.
 
 ```sh
-cd web
-python3 -m http.server 8000
-# open http://localhost:8000/
+./scripts/dev.sh
+# open http://localhost:5173/
 ```
 
-Pick a `.tb.png` file. Cartridges live in the sibling [`TinyBit/games/`](../TinyBit/games/) directory; if they were created against a different engine version, regenerate them with the desktop wrapper:
+`scripts/dev.sh` rebuilds the WASM and starts the Vite dev server. To build for production:
 
 ```sh
-cd ../TinyBit
-./build/tinybit -c games/flappy.png games/flappy.lua games/flappy_cover.png games/flappy.tb.png
+./scripts/build.sh
+cd editor && npm run build
+# serves from editor/dist/
 ```
 
 ### Create a cartridge
 
-Open the **"Create a cartridge"** panel below the upload picker. Pick a 128x128 cover PNG, a 128x128 spritesheet PNG, a Lua script, and optional header metadata. Hit **Download .tb.png** to save the cartridge, or **Play now** to feed the encoded bytes directly into the engine without leaving the page. The encoder is built into the same `tinybit_wasm.wasm` — no separate tooling required.
+Open the **Cartridge** tab in the editor's left pane. Pick a 128×128 spritesheet PNG and (optionally) a 128×128 cover PNG, and set the title/author. Hit **▶ Play** to encode and run the cartridge in-page, or **⬇ Download** to save the cartridge to disk. The encoder is built into the same `tinybit_wasm.wasm` — no separate tooling required.
 
 ### Controls
 
@@ -50,6 +52,13 @@ Open the **"Create a cartridge"** panel below the upload picker. Pick a 128x128 
 | B | B |
 | Enter | START |
 | Backspace | SELECT |
+
+### Tests
+
+- `cd editor && npm test`         — unit + component tests (Vitest, jsdom)
+- `cd editor && npm run test:e2e` — Playwright smoke (boot + encode + play)
+- `node scripts/smoke.mjs`        — engine-level Node smoke (player path)
+- `node scripts/smoke_encoder.mjs` — engine-level Node smoke (encoder round-trip)
 
 ## Smoke tests
 
@@ -64,11 +73,13 @@ Loads the built `.wasm` in Node, supplies a 40-line WASI shim, feeds a real `fla
 ## Layout
 
 - `src/tinybit/` — git submodule, C engine, untouched
-- `src/lib.rs` — Rust wrapper, raw `extern "C"` exports for JS
+- `src/lib.rs` — Rust wrapper, raw `extern "C"` exports for JS (player + encoder)
 - `src/bindings.rs` — hand-written FFI declarations for the C library
+- `src/encoder/` — pure-Rust cartridge encoder modules
 - `build.rs` — wasi-sdk discovery + cc-rs C compilation
-- `web/` — static frontend (`index.html`, `index.js`, `wasi-shim.js`, `audio-worklet.js`)
-- `scripts/build.sh`, `scripts/smoke.mjs`
+- `editor/` — Vite + React editor (source under `editor/src/`, production build to `editor/dist/`)
+- `editor/public/` — static assets served by Vite, including the built `tinybit_wasm.wasm`
+- `scripts/build.sh`, `scripts/dev.sh`, `scripts/smoke.mjs`, `scripts/smoke_encoder.mjs`
 - `docs/superpowers/specs/`, `docs/superpowers/plans/` — design + implementation docs
 
 ## Architecture notes
@@ -85,13 +96,17 @@ The Rust wrapper exposes a small flat C API to JS:
 | `tb_start()`, `tb_stop()`, `tb_loop_once()` | Lifecycle |
 | `tb_set_button(idx, pressed)` | Write input state |
 | `tb_display_ptr()`, `tb_audio_ptr()` | Pointers into the engine's display + audio buffers |
+| `tb_enc_init()`, `tb_enc_input_ptr(slot)`, `tb_enc_set_input_len(slot, len)` | Stage encoder inputs |
+| `tb_enc_set_header(...)`, `tb_enc_run()` | Build the cartridge |
+| `tb_enc_output_ptr()`, `tb_enc_error_ptr()`, `tb_enc_error_len()` | Read encoder result / error |
 
 JS reads display/audio by constructing typed-array views over wasm memory at the returned pointers — zero copy. Views are reconstructed each frame to stay valid across `memory.grow`.
 
 ## Limitations
 
-- No game-selector UI; this build only plays cartridges uploaded directly. The selector is a feature of the desktop wrapper.
+- Single-sketch playground. No multi-cartridge library, no cloud save, no URL sharing.
 - The browser encoder caps scripts at 32 621 bytes — one less than the desktop encoder's 32 622, to keep the cartridge payload within 65 536 pixels including the trailing NUL.
 - Audio plays at the host `AudioContext` sample rate; if the browser refuses 22 kHz, pitch is off (no resampler is included).
 - Touch and gamepad input are not supported.
 - `os.tmpname()` from Lua is stubbed; cartridges that depend on it will get a no-op temp name.
+- `.tb.png` drag-drop into the editor would play the cartridge but does not yet repopulate the script/sprite — extracting those needs an engine-side decoder export that doesn't exist yet.

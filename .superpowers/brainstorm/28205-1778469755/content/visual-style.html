@@ -1,0 +1,177 @@
+<h2>Which visual direction feels right?</h2>
+<p class="subtitle">All three use the layout you picked. They differ in palette, type, and chrome. "Playful but not childish" reads differently for each.</p>
+
+<style>
+  .style-card { padding: 0; }
+  .style-mock { width: 100%; aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; font-size: 10px; }
+  .sm-toolbar { height: 26px; display: flex; align-items: center; padding: 0 10px; gap: 10px; flex-shrink: 0; }
+  .sm-brand { font-weight: 800; letter-spacing: 0.3px; font-size: 11px; }
+  .sm-btn { border-radius: 4px; padding: 2px 8px; font-size: 9px; font-weight: 600; }
+  .sm-row { display: flex; flex: 1; min-height: 0; }
+  .sm-pane { padding: 8px 10px; }
+  .sm-tabs { display: flex; gap: 0; }
+  .sm-tab { padding: 4px 10px; font-size: 9px; }
+  .sm-line { display: flex; gap: 8px; line-height: 1.55; }
+  .sm-no { min-width: 14px; text-align: right; opacity: 0.45; }
+  .sm-canvas-inner { aspect-ratio: 1; image-rendering: pixelated; }
+
+  /* A — Bubblegum (p5-inspired) */
+  .sty-a { background: #fafafa; color: #181820; font-family: 'Inter', system-ui, sans-serif; }
+  .sty-a .sm-toolbar { background: #fff; border-bottom: 1px solid #ececf0; }
+  .sty-a .sm-brand { color: #ed225d; }
+  .sty-a .sm-btn { background: #f1f1f4; color: #181820; }
+  .sty-a .sm-btn.play { background: #ed225d; color: #fff; }
+  .sty-a .sm-tabs { background: #f6f6f8; border-bottom: 1px solid #ececf0; }
+  .sty-a .sm-tab { color: #6b6b76; }
+  .sty-a .sm-tab.active { background: #fff; color: #ed225d; border-bottom: 2px solid #ed225d; }
+  .sty-a .sm-editor { background: #fff; color: #4a4a52; font-family: 'JetBrains Mono', monospace; flex: 1.2; }
+  .sty-a .sm-editor .kw { color: #ed225d; font-weight: 600; }
+  .sty-a .sm-editor .id { color: #2563eb; }
+  .sty-a .sm-editor .num { color: #d97706; }
+  .sty-a .sm-editor .str { color: #16a34a; }
+  .sty-a .sm-canvas { background: #f1f1f4; flex: 1; display: flex; align-items: center; justify-content: center; border-left: 1px solid #ececf0; }
+  .sty-a .sm-canvas-inner { width: 70%; background: linear-gradient(135deg, #fde4ef, #c7e0ff); border: 1px solid #ececf0; }
+  .sty-a .sm-console { background: #fafafa; color: #6b6b76; border-top: 1px solid #ececf0; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 9px; flex-shrink: 0; height: 30%; }
+  .sty-a .sm-console .warn { color: #d97706; }
+
+  /* B — Arcade Neon (dark CRT) */
+  .sty-b { background: #0a0a10; color: #c7c7d4; font-family: 'Space Grotesk', system-ui, sans-serif; }
+  .sty-b .sm-toolbar { background: #11111a; border-bottom: 1px solid #22222e; }
+  .sty-b .sm-brand { color: #00ffd1; text-shadow: 0 0 8px rgba(0,255,209,0.5); font-family: 'Space Grotesk', monospace; }
+  .sty-b .sm-btn { background: #1a1a26; color: #c7c7d4; border: 1px solid #2a2a3a; }
+  .sty-b .sm-btn.play { background: transparent; border: 1px solid #00ffd1; color: #00ffd1; text-shadow: 0 0 6px rgba(0,255,209,0.6); }
+  .sty-b .sm-tabs { background: #0d0d14; border-bottom: 1px solid #22222e; }
+  .sty-b .sm-tab { color: #6a6a80; }
+  .sty-b .sm-tab.active { background: #11111a; color: #ff3ec9; border-bottom: 2px solid #ff3ec9; }
+  .sty-b .sm-editor { background: #0e0e16; color: #8a8aa0; font-family: 'JetBrains Mono', monospace; flex: 1.2; }
+  .sty-b .sm-editor .kw { color: #ff3ec9; }
+  .sty-b .sm-editor .id { color: #00ffd1; }
+  .sty-b .sm-editor .num { color: #ffe066; }
+  .sty-b .sm-editor .str { color: #a6e22e; }
+  .sty-b .sm-canvas { background: #050508; flex: 1; display: flex; align-items: center; justify-content: center; border-left: 1px solid #22222e; }
+  .sty-b .sm-canvas-inner { width: 70%; background: linear-gradient(135deg, #1b0a2d, #0a1b2d); border: 1px solid #2a1a4a; box-shadow: 0 0 24px rgba(255,62,201,0.18); }
+  .sty-b .sm-console { background: #08080d; color: #6a6a80; border-top: 1px solid #22222e; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 9px; flex-shrink: 0; height: 30%; }
+  .sty-b .sm-console .warn { color: #ffe066; }
+
+  /* C — Warm paper (light, editorial) */
+  .sty-c { background: #f6f1e6; color: #2a2620; font-family: 'Inter', system-ui, sans-serif; }
+  .sty-c .sm-toolbar { background: #fbf7ee; border-bottom: 1px solid #e6dccb; }
+  .sty-c .sm-brand { color: #c1440e; font-family: 'Fraunces', Georgia, serif; font-style: italic; }
+  .sty-c .sm-btn { background: #efe7d4; color: #2a2620; }
+  .sty-c .sm-btn.play { background: #c1440e; color: #fbf7ee; }
+  .sty-c .sm-tabs { background: #f1ead7; border-bottom: 1px solid #e6dccb; }
+  .sty-c .sm-tab { color: #6e6655; }
+  .sty-c .sm-tab.active { background: #fbf7ee; color: #c1440e; border-bottom: 2px solid #c1440e; }
+  .sty-c .sm-editor { background: #fbf7ee; color: #4a4438; font-family: 'JetBrains Mono', monospace; flex: 1.2; }
+  .sty-c .sm-editor .kw { color: #c1440e; font-weight: 600; }
+  .sty-c .sm-editor .id { color: #1d6e87; }
+  .sty-c .sm-editor .num { color: #8a5a1a; }
+  .sty-c .sm-editor .str { color: #527a3c; }
+  .sty-c .sm-canvas { background: #ede5d2; flex: 1; display: flex; align-items: center; justify-content: center; border-left: 1px solid #e6dccb; }
+  .sty-c .sm-canvas-inner { width: 70%; background: linear-gradient(135deg, #efdcc6, #d9c8a8); border: 1px solid #c9b890; }
+  .sty-c .sm-console { background: #f1ead7; color: #6e6655; border-top: 1px solid #e6dccb; padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 9px; flex-shrink: 0; height: 30%; }
+  .sty-c .sm-console .warn { color: #8a5a1a; }
+
+  .style-tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 99px; margin-right: 4px; }
+  .style-tag.bg-pink { background: #fde4ef; color: #ed225d; }
+  .style-tag.bg-neon { background: #1a1a26; color: #00ffd1; }
+  .style-tag.bg-paper { background: #efe7d4; color: #c1440e; }
+</style>
+
+<div class="cards">
+  <div class="card style-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="style-mock sty-a">
+        <div class="sm-toolbar">
+          <span class="sm-brand">tinybit</span>
+          <span class="sm-btn play">▶ Play</span>
+          <span class="sm-btn">■</span>
+          <span class="sm-btn">⬇</span>
+        </div>
+        <div class="sm-row">
+          <div class="sm-pane sm-editor" style="padding:0">
+            <div class="sm-tabs"><span class="sm-tab active">script.lua</span><span class="sm-tab">alt</span><span class="sm-tab">cartridge</span></div>
+            <div style="padding:8px 10px">
+              <div class="sm-line"><span class="sm-no">1</span><span><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+              <div class="sm-line"><span class="sm-no">2</span><span>&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0000</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">3</span><span>&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>, <span class="num">60</span>, <span class="num">60</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">4</span><span><span class="kw">end</span></span></div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+            <div class="sm-canvas" style="flex:1;"><div class="sm-canvas-inner"></div></div>
+            <div class="sm-console">&gt; loaded sketch (213 B)<br><span class="warn">&gt; spritesheet pending</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bubblegum <span class="style-tag bg-pink">#ED225D</span></h3>
+      <p>Direct p5.js inspiration: light bg, one bold pink accent, Inter UI, JetBrains Mono code. Friendly and confident. Risk: feels derivative of p5. Honest read: it's the safest "playful, modern, professional" choice.</p>
+    </div>
+  </div>
+
+  <div class="card style-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="style-mock sty-b">
+        <div class="sm-toolbar">
+          <span class="sm-brand">TINYBIT</span>
+          <span class="sm-btn play">▶ PLAY</span>
+          <span class="sm-btn">■</span>
+          <span class="sm-btn">⬇</span>
+        </div>
+        <div class="sm-row">
+          <div class="sm-pane sm-editor" style="padding:0">
+            <div class="sm-tabs"><span class="sm-tab active">script.lua</span><span class="sm-tab">alt</span><span class="sm-tab">cartridge</span></div>
+            <div style="padding:8px 10px">
+              <div class="sm-line"><span class="sm-no">1</span><span><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+              <div class="sm-line"><span class="sm-no">2</span><span>&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0000</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">3</span><span>&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>, <span class="num">60</span>, <span class="num">60</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">4</span><span><span class="kw">end</span></span></div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+            <div class="sm-canvas" style="flex:1;"><div class="sm-canvas-inner"></div></div>
+            <div class="sm-console">&gt; loaded sketch (213 B)<br><span class="warn">&gt; spritesheet pending</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Arcade Neon <span class="style-tag bg-neon">#00FFD1 / #FF3EC9</span></h3>
+      <p>Dark, two-accent (cyan + magenta), subtle glow. Reads as "pixel-art console" first. Fits tinybit's medium. Risk: lean too far into "retrowave" and it tips childish. We'd dial back the glow and keep type clean.</p>
+    </div>
+  </div>
+
+  <div class="card style-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="style-mock sty-c">
+        <div class="sm-toolbar">
+          <span class="sm-brand">tinybit</span>
+          <span class="sm-btn play">▶ Play</span>
+          <span class="sm-btn">■</span>
+          <span class="sm-btn">⬇</span>
+        </div>
+        <div class="sm-row">
+          <div class="sm-pane sm-editor" style="padding:0">
+            <div class="sm-tabs"><span class="sm-tab active">script.lua</span><span class="sm-tab">alt</span><span class="sm-tab">cartridge</span></div>
+            <div style="padding:8px 10px">
+              <div class="sm-line"><span class="sm-no">1</span><span><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+              <div class="sm-line"><span class="sm-no">2</span><span>&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0000</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">3</span><span>&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>, <span class="num">60</span>, <span class="num">60</span>)</span></div>
+              <div class="sm-line"><span class="sm-no">4</span><span><span class="kw">end</span></span></div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+            <div class="sm-canvas" style="flex:1;"><div class="sm-canvas-inner"></div></div>
+            <div class="sm-console">&gt; loaded sketch (213 B)<br><span class="warn">&gt; spritesheet pending</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Warm paper <span class="style-tag bg-paper">#C1440E</span></h3>
+      <p>Cream paper, terracotta accent, serif italic wordmark. Reads as "editorial / creative-coding zine". Less obviously a game tool — more an authoring environment. Distinct from p5 but the warm bg may feel low-contrast for game work.</p>
+    </div>
+  </div>
+</div>

@@ -4,11 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const wasmPath = resolve(__dirname, '..', 'web', 'tinybit_wasm.wasm');
+const wasmPath = resolve(__dirname, '..', 'target', 'wasm32-wasip1', 'release', 'tinybit_wasm.wasm');
 const cartPath = resolve(__dirname, '..', '..', 'TinyBit', 'games', 'flappy.tb.png');
 
 if (!existsSync(wasmPath)) {
-  console.error(`missing ${wasmPath}; run scripts/build.sh first`);
+  console.error(`missing ${wasmPath}; run ./scripts/build.sh first`);
   process.exit(1);
 }
 if (!existsSync(cartPath)) {
