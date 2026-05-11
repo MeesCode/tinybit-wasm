@@ -13,6 +13,15 @@ const btnStyle = (active: boolean): CSSProperties => ({
 });
 const dividerStyle: CSSProperties = { width: 28, height: 1, background: '#ECECF0', margin: '4px 0' };
 
+function nextSize(s: PencilSize): PencilSize {
+    const i = SIZES.indexOf(s);
+    return SIZES[Math.min(i + 1, SIZES.length - 1)];
+}
+function prevSize(s: PencilSize): PencilSize {
+    const i = SIZES.indexOf(s);
+    return SIZES[Math.max(i - 1, 0)];
+}
+
 export function ToolRail() {
     const { tool, pencilSize, zoom, setTool, setPencilSize, setZoom } = useSpriteEditorStore();
 
@@ -27,18 +36,9 @@ export function ToolRail() {
             {toolBtn('fill',       'Fill',       '🪣')}
             {toolBtn('eyedropper', 'Eyedropper', '💧')}
             <div style={dividerStyle} />
-            <label htmlFor="pencil-size" style={{ fontSize: 10, color: '#6B6B76' }}>Size</label>
-            <input
-                id="pencil-size"
-                type="range"
-                aria-label="Pencil size"
-                min={0}
-                max={SIZES.length - 1}
-                step={1}
-                value={SIZES.indexOf(pencilSize)}
-                onChange={(e) => setPencilSize(SIZES[Number(e.target.value)])}
-            />
+            <button type="button" aria-label="Increase pencil size" onClick={() => setPencilSize(nextSize(pencilSize))} style={btnStyle(false)}>+</button>
             <div style={{ fontSize: 11, color: '#181820' }}>{pencilSize}</div>
+            <button type="button" aria-label="Decrease pencil size" onClick={() => setPencilSize(prevSize(pencilSize))} style={btnStyle(false)}>−</button>
             <div style={dividerStyle} />
             <button type="button" aria-label="Zoom in"  onClick={() => setZoom(nextZoom(zoom))} style={btnStyle(false)}>+</button>
             <div style={{ fontSize: 11, color: '#181820' }}>{zoom}×</div>

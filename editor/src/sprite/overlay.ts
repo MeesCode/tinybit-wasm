@@ -77,11 +77,14 @@ export function drawOverlay({ ctx, canvasW, canvasH, plan, spriteRect, zoom }: D
         for (let i = 0; i < 16; i++) {
             const num = (i * 8).toString();
             const x = spriteRect.x + i * 8 * zoom + (8 * zoom) / 2;
-            ctx.textAlign = 'center';
-            ctx.fillText(num, x, spriteRect.y - 8);
             const y = spriteRect.y + i * 8 * zoom + (8 * zoom) / 2;
+            ctx.textAlign = 'center';
+            ctx.fillText(num, x, spriteRect.y - 8);                       // top
+            ctx.fillText(num, x, spriteRect.y + spriteRect.h + 8);        // bottom
             ctx.textAlign = 'right';
-            ctx.fillText(num, spriteRect.x - 4, y);
+            ctx.fillText(num, spriteRect.x - 4, y);                       // left
+            ctx.textAlign = 'left';
+            ctx.fillText(num, spriteRect.x + spriteRect.w + 4, y);        // right
         }
     }
     if (plan.showPixelNumbers) {
@@ -90,11 +93,14 @@ export function drawOverlay({ ctx, canvasW, canvasH, plan, spriteRect, zoom }: D
         ctx.textBaseline = 'middle';
         for (let i = 0; i < 128; i++) {
             const x = spriteRect.x + i * zoom + zoom / 2;
-            ctx.textAlign = 'center';
-            ctx.fillText(i.toString(), x, spriteRect.y - 20);
             const y = spriteRect.y + i * zoom + zoom / 2;
+            ctx.textAlign = 'center';
+            ctx.fillText(i.toString(), x, spriteRect.y - 20);                  // top
+            ctx.fillText(i.toString(), x, spriteRect.y + spriteRect.h + 20);   // bottom
             ctx.textAlign = 'right';
-            ctx.fillText(i.toString(), spriteRect.x - 16, y);
+            ctx.fillText(i.toString(), spriteRect.x - 16, y);                  // left
+            ctx.textAlign = 'left';
+            ctx.fillText(i.toString(), spriteRect.x + spriteRect.w + 16, y);   // right
         }
     }
 }
