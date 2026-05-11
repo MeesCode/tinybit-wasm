@@ -1,4 +1,5 @@
-import { makeWasiShim } from './wasi-shim.js';
+import { tb, memoryRef } from './wasm-runtime.js';
+import { encodeFromForm, sanitizeFilename, SCRIPT_MAX } from './encoder.js';
 
 const SCREEN_W = 128;
 const SCREEN_H = 128;
@@ -41,16 +42,6 @@ function pumpAudio() {
   }
   workletNode.port.postMessage(f.buffer, [f.buffer]);
 }
-
-const memoryRef = { value: null };
-const wasi = makeWasiShim(memoryRef);
-
-const wasm = await WebAssembly.instantiateStreaming(
-  fetch('./tinybit_wasm.wasm'),
-  { wasi_snapshot_preview1: wasi },
-);
-const tb = wasm.instance.exports;
-memoryRef.value = tb.memory;
 
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
@@ -105,7 +96,7 @@ function stopGame() {
   }
 }
 
-async function loadCartridge(file) {
+async function loadCartridgeBytes(buf) {
   clearError();
   stopGame();
 
@@ -114,8 +105,6 @@ async function loadCartridge(file) {
   } catch (err) {
     console.warn('audio init failed; running silent:', err);
   }
-
-  const buf = new Uint8Array(await file.arrayBuffer());
 
   tb.tb_init();
 
@@ -138,6 +127,11 @@ async function loadCartridge(file) {
 
   running = true;
   rafId = requestAnimationFrame(tick);
+}
+
+async function loadCartridge(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  await loadCartridgeBytes(buf);
 }
 
 document.getElementById('cart').addEventListener('change', async (e) => {
@@ -164,3 +158,66 @@ window.addEventListener('keyup', (e) => {
   if (PREVENT_DEFAULT_KEYS.has(e.key)) e.preventDefault();
   tb.tb_set_button(idx, 0);
 });
+
+const els = {
+  cover:       document.getElementById('enc-cover'),
+  sprite:      document.getElementById('enc-sprite'),
+  script:      document.getElementById('enc-script'),
+  frame:       document.getElementById('enc-frame'),
+  title:       document.getElementById('enc-title'),
+  author:      document.getElementById('enc-author'),
+  gameVersion: document.getElementById('enc-game-version'),
+  flags:       document.getElementById('enc-flags'),
+  downloadBtn: document.getElementById('enc-download'),
+  playBtn:     document.getElementById('enc-play'),
+  status:      document.getElementById('enc-status'),
+  usage:       document.getElementById('enc-script-usage'),
+};
+
+function setStatus(msg, isError) {
+  els.status.textContent = msg;
+  els.status.classList.toggle('error', !!isError);
+}
+
+function updateScriptUsage() {
+  const f = els.script.files && els.script.files[0];
+  if (!f) { els.usage.hidden = true; return; }
+  const pct = Math.floor(f.size / SCRIPT_MAX * 100);
+  els.usage.hidden = false;
+  els.usage.textContent = `${f.size.toLocaleString()} / ${SCRIPT_MAX.toLocaleString()} bytes (${pct} %)`;
+  const over = f.size > SCRIPT_MAX;
+  els.usage.classList.toggle('over-limit', over);
+  els.downloadBtn.disabled = over;
+  els.playBtn.disabled     = over;
+}
+els.script.addEventListener('change', updateScriptUsage);
+
+async function runEncodeAnd(action) {
+  setStatus('Encoding…', false);
+  try {
+    const bytes = await encodeFromForm(els);
+    await action(bytes);
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
+els.downloadBtn.addEventListener('click', () => runEncodeAnd((bytes) => {
+  const blob = new Blob([bytes], { type: 'image/png' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = sanitizeFilename(els.title.value);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus(`Encoded ${bytes.length.toLocaleString()} bytes → ${a.download}`, false);
+}));
+
+els.playBtn.addEventListener('click', () => runEncodeAnd(async (bytes) => {
+  setStatus(`Encoded ${bytes.length.toLocaleString()} bytes — starting…`, false);
+  // Reuse the existing upload-style flow: feed the bytes through tb_feed_cartridge.
+  await loadCartridgeBytes(bytes);
+  setStatus('Playing the encoded cartridge.', false);
+}));
