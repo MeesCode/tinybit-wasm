@@ -101,12 +101,12 @@ pub fn decode(
     //    read_byte; the first 0x00 terminates.
     let mut script_len = 0usize;
     loop {
-        if script_len > SCRIPT_MAX {
-            return Err(DecError::ScriptOverrun);
-        }
         let b = read_byte(canvas_buf, &mut cursor);
         if b == 0 {
             break;
+        }
+        if script_len >= SCRIPT_MAX {
+            return Err(DecError::ScriptOverrun);
         }
         script_buf[script_len] = b;
         script_len += 1;
@@ -347,5 +347,49 @@ mod tests {
                          script_arr, &mut sprite_png, &mut cover_png).unwrap_err();
         assert_eq!(err, DecError::HeaderVersionMismatch { found: 2 });
         assert_eq!(err.code(), -3);
+    }
+
+    #[test]
+    fn decode_rejects_script_without_nul_terminator() {
+        use crate::encoder::header::pack;
+        use crate::encoder::png_io::encode_rgba;
+        use crate::encoder::steg::{write_bytes, write_spritesheet};
+
+        let opts = HeaderOpts {
+            title: "t", author: "",
+            format_version: 1, flags: 0, game_version: 1, package_date: 0,
+        };
+        let header = pack(&opts, b""); // CRC over empty script — irrelevant here
+
+        let mut canvas = vec![0u8; CART_RGBA_LEN].into_boxed_slice();
+        let canvas_arr: &mut [u8; CART_RGBA_LEN] = canvas.as_mut().try_into().unwrap();
+        let mut cursor = 0usize;
+        write_bytes(canvas_arr, &mut cursor, &header);
+        let zero_sprite = [0u8; SCREEN_RGBA_LEN];
+        write_spritesheet(canvas_arr, &mut cursor, &zero_sprite);
+        // Fill the entire 32_622-byte script region with non-NUL bytes (0xAA).
+        let bogus_script = vec![0xAAu8; SCRIPT_MAX + 1]; // 32_622 bytes, no NUL
+        write_bytes(canvas_arr, &mut cursor, &bogus_script);
+
+        let mut cartridge = Vec::new();
+        encode_rgba(canvas_arr, &mut cartridge).unwrap();
+
+        let mut canvas2 = vec![0u8; CART_RGBA_LEN].into_boxed_slice();
+        let canvas2_arr: &mut [u8; CART_RGBA_LEN] = canvas2.as_mut().try_into().unwrap();
+        let mut packed = vec![0u8; PACKED_SPRITE_LEN].into_boxed_slice();
+        let packed_arr: &mut [u8; PACKED_SPRITE_LEN] = packed.as_mut().try_into().unwrap();
+        let mut sprite_rgba = vec![0u8; SCREEN_RGBA_LEN].into_boxed_slice();
+        let sprite_arr: &mut [u8; SCREEN_RGBA_LEN] = sprite_rgba.as_mut().try_into().unwrap();
+        let mut cover_rgba = vec![0u8; SCREEN_RGBA_LEN].into_boxed_slice();
+        let cover_arr: &mut [u8; SCREEN_RGBA_LEN] = cover_rgba.as_mut().try_into().unwrap();
+        let mut script_buf = vec![0u8; SCRIPT_MAX].into_boxed_slice();
+        let script_arr: &mut [u8; SCRIPT_MAX] = script_buf.as_mut().try_into().unwrap();
+        let mut sprite_png = Vec::new();
+        let mut cover_png  = Vec::new();
+
+        let err = decode(&cartridge, canvas2_arr, packed_arr, sprite_arr, cover_arr,
+                         script_arr, &mut sprite_png, &mut cover_png).unwrap_err();
+        assert_eq!(err, DecError::ScriptOverrun);
+        assert_eq!(err.code(), -4);
     }
 }
