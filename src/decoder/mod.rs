@@ -9,7 +9,7 @@ pub use header::HeaderParts;
 
 use crate::encoder::header::HEADER_SIZE;
 use crate::encoder::image::{CART_RGBA_LEN, ImageError, SCREEN_RGBA_LEN};
-use crate::encoder::header::crc32;
+use crate::decoder::header::verify_script_crc;
 use crate::decoder::image::{decode_cartridge_png, extract_cover_rgba, expand_spritesheet};
 use crate::decoder::png_io::{encode_rgba_128x128, PngWriteError};
 use crate::decoder::steg::{read_byte, read_spritesheet_byte};
@@ -117,7 +117,7 @@ pub fn decode(
     }
 
     // 5. CRC check the script (non-fatal; surfaced as crc_ok).
-    let crc_ok = crc32(&script_buf[..script_len]) == header.checksum;
+    let crc_ok = verify_script_crc(&script_buf[..script_len], header.checksum);
 
     // 6. Crop the cover, re-encode it as a 128×128 PNG.
     extract_cover_rgba(canvas_buf, cover_rgba);
