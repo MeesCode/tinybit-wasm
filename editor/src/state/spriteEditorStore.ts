@@ -63,7 +63,7 @@ export const useSpriteEditorStore = create<SpriteEditorState>((set, get) => {
         setPan(p) { set({ pan: p }); },
         setColor(rgba) {
             const snapped = (snapAllChannels(rgba) >>> 0);
-            const recent = [rgba, ...get().recent.filter((c) => c !== rgba)].slice(0, RECENT_CAP);
+            const recent = [snapped, ...get().recent.filter((c) => c !== snapped)].slice(0, RECENT_CAP);
             set({ color: snapped, recent });
         },
         setOverlay(which, mode) {

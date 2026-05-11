@@ -17,14 +17,15 @@ describe('spriteEditorStore', () => {
         expect(useSpriteEditorStore.getState().color).toBe(0xF0A0B0C0);
     });
 
-    test('setColor prepends to recent and dedupes (most-recent first)', () => {
+    test('setColor prepends snapped values to recent and dedupes (most-recent first)', () => {
         const { setColor } = useSpriteEditorStore.getState();
-        setColor(0xFF0000FF);
-        setColor(0x00FF00FF);
-        setColor(0xFF0000FF);
+        setColor(0xFF0000FF);  // snaps to 0xF00000F0
+        setColor(0x00FF00FF);  // snaps to 0x00F000F0
+        setColor(0xFE0301FB);  // snaps to 0xF00000F0 again — should dedup
         const r = useSpriteEditorStore.getState().recent;
-        expect(r[0]).toBe(0xFF0000FF);
-        expect(r.filter((c) => c === 0xFF0000FF).length).toBe(1);
+        expect(r[0]).toBe(0xF00000F0);                                  // most-recent first
+        expect(r.filter((c) => c === 0xF00000F0).length).toBe(1);       // deduped
+        expect(r).toContain(0x00F000F0);                                // green still present
     });
 
     test('recent caps at 12', () => {
