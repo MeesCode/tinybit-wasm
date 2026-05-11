@@ -20,21 +20,23 @@ git submodule update --init --recursive
 ./scripts/build.sh
 ```
 
-The first build downloads wasi-sdk-25 (~150 MB) into `target/wasi-sdk/`. Subsequent builds reuse it. The output is `web/tinybit_wasm.wasm`.
+The first build downloads wasi-sdk-25 (~150 MB) into `target/wasi-sdk/`. Subsequent builds reuse it. The output is `editor/public/tinybit_wasm.wasm`.
 
-## Play in a browser
+## Run the editor
+
+The browser editor lets you write Lua, upload a 128×128 PNG spritesheet (and optional cover), play in-browser, and download a `.tb.png` cartridge.
 
 ```sh
-cd web
-python3 -m http.server 8000
-# open http://localhost:8000/
+./scripts/dev.sh
+# open http://localhost:5173/
 ```
 
-Pick a `.tb.png` file. Cartridges live in the sibling [`TinyBit/games/`](../TinyBit/games/) directory; if they were created against a different engine version, regenerate them with the desktop wrapper:
+`scripts/dev.sh` rebuilds the WASM and starts the Vite dev server. To build for production:
 
 ```sh
-cd ../TinyBit
-./build/tinybit -c games/flappy.png games/flappy.lua games/flappy_cover.png games/flappy.tb.png
+./scripts/build.sh
+cd editor && npm run build
+# serves from editor/dist/
 ```
 
 ### Controls
@@ -46,6 +48,12 @@ cd ../TinyBit
 | B | B |
 | Enter | START |
 | Backspace | SELECT |
+
+### Tests
+
+- `cd editor && npm test`         — unit + component tests (Vitest, jsdom)
+- `cd editor && npm run test:e2e` — Playwright smoke (boot + encode + play)
+- `node scripts/smoke.mjs`        — engine-level Node smoke (unchanged)
 
 ## Smoke test
 
@@ -62,8 +70,9 @@ Loads the built `.wasm` in Node, supplies a 40-line WASI shim, feeds a real `fla
 - `src/lib.rs` — Rust wrapper, raw `extern "C"` exports for JS
 - `src/bindings.rs` — hand-written FFI declarations for the C library
 - `build.rs` — wasi-sdk discovery + cc-rs C compilation
-- `web/` — static frontend (`index.html`, `index.js`, `wasi-shim.js`, `audio-worklet.js`)
-- `scripts/build.sh`, `scripts/smoke.mjs`
+- `editor/` — Vite + React editor (source under `editor/src/`, production build to `editor/dist/`)
+- `editor/public/` — static assets served by Vite, including the built `tinybit_wasm.wasm`
+- `scripts/build.sh`, `scripts/dev.sh`, `scripts/smoke.mjs`
 - `docs/superpowers/specs/`, `docs/superpowers/plans/` — design + implementation docs
 
 ## Architecture notes
@@ -85,8 +94,32 @@ JS reads display/audio by constructing typed-array views over wasm memory at the
 
 ## Limitations
 
-- No game-selector UI; this build only plays cartridges uploaded directly. The selector is a feature of the desktop wrapper.
-- No cartridge export. Use the desktop wrapper's `-c` mode to author cartridges.
+- No cartridge export until `feat/tb-encoder` merges. The editor's Download button requires `tb_enc_*` WASM exports; until that branch merges the button will return an error. Use the desktop wrapper's `-c` mode in the meantime.
+- The editor's Play button also requires `feat/tb-encoder`; until it merges the console logs "Encoder exports missing — rebuild after merging feat/tb-encoder".
 - Audio plays at the host `AudioContext` sample rate; if the browser refuses 22 kHz, pitch is off (no resampler is included).
 - Touch and gamepad input are not supported.
 - `os.tmpname()` from Lua is stubbed; cartridges that depend on it will get a no-op temp name.
+
+## Known environmental requirements
+
+These are one-time setup steps on a fresh Linux machine.
+
+### Playwright system libs
+
+Before running `npm run test:e2e` for the first time, install the system libraries Chromium needs:
+
+```sh
+sudo apt-get install -y libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+  libpango-1.0-0 libcairo2 libasound2
+cd editor && npx playwright install chromium
+```
+
+### Encoder branch dependency
+
+The editor's Play and Download buttons require the WASM build to export `tb_enc_*` symbols from the `feat/tb-encoder` branch. Until that branch merges:
+
+- **Play:** logs "Encoder exports missing — rebuild after merging feat/tb-encoder"; game will not start.
+- **Download:** returns an error.
+
+You can still open the editor, write Lua, and inspect the UI without the encoder branch.
