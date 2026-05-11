@@ -5,4 +5,5 @@ export default defineConfig({
     plugins: [react()],
     base: './',
     server: { port: 5173 },
+    preview: { port: 4173, allowedHosts: ['tinybit.mees.space'] },
 });
