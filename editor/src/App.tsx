@@ -113,8 +113,17 @@ export function App() {
     }, [consoleAppend]);
 
     useEffect(() => {
+        // Don't consume game-button keys when the user is typing in an editable element.
+        const isEditing = (target: EventTarget | null): boolean => {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            if (el.isContentEditable) return true;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        };
         const down = (e: KeyboardEvent) => {
             const rt = runtime; if (!rt) return;
+            if (isEditing(e.target)) return;
             const idx = BUTTONS[e.key]; if (idx === undefined) return;
             if (PREVENT_DEFAULT_KEYS.has(e.key)) e.preventDefault();
             if (e.repeat) return;
@@ -122,6 +131,7 @@ export function App() {
         };
         const up = (e: KeyboardEvent) => {
             const rt = runtime; if (!rt) return;
+            if (isEditing(e.target)) return;
             const idx = BUTTONS[e.key]; if (idx === undefined) return;
             if (PREVENT_DEFAULT_KEYS.has(e.key)) e.preventDefault();
             rt.tb.setButton(idx, false);
