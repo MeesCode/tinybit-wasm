@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { loadSketch, saveSketchDebounced } from './state/persist';
@@ -6,6 +6,8 @@ import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
 import { EncodeError } from './engine/encoder';
+import { DecodeError } from './engine/decoder';
+import { readPngSize } from './lib/png';
 import { getPlaceholderCover, getPlaceholderSprite } from './engine/placeholders';
 import { Toolbar } from './ui/Toolbar';
 import { EditorPane, type EditorTab } from './ui/EditorPane';
@@ -15,8 +17,23 @@ import { AltEditorTab } from './ui/AltEditorTab';
 import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
+import { UploadConfirm } from './ui/UploadConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
+
+const dropOverlayStyle: CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 9998,
+    background: 'rgba(237, 34, 93, 0.18)',
+    display: 'grid', placeItems: 'center',
+    pointerEvents: 'none',
+    color: '#FFFFFF', fontSize: 20, fontWeight: 700, letterSpacing: 0.5,
+    textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+};
+
+interface PendingUpload {
+    bytes: Uint8Array;
+    filename: string;
+}
 
 export function App() {
     const sketch = useSketchStore();
@@ -25,8 +42,12 @@ export function App() {
     const [engineState, setEngineState] = useState<FrameLoopState>('idle');
     const [runtime, setRuntime] = useState<Runtime | null>(null);
     const [bootError, setBootError] = useState<string | null>(null);
+    const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
+    const openInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         const stored = loadSketch();
@@ -56,6 +77,7 @@ export function App() {
                 if (cancelled) return;
                 setRuntime(rt);
                 if (!rt.encoderAvailable) consoleAppend('warn', 'Encoder exports missing — rebuild after merging feat/tb-encoder.');
+                if (!rt.decoderAvailable) consoleAppend('warn', 'Decoder exports missing — rebuild after merging feat/tb-decoder.');
                 const fl = makeFrameLoop(rt.tb);
                 fl.onStateChange(setEngineState);
                 fl.onError((msg) => consoleAppend('error', msg));
@@ -87,6 +109,109 @@ export function App() {
         window.addEventListener('keyup', up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, [runtime]);
+
+    // Upload pipeline ────────────────────────────────────────────────────────
+
+    const acceptFile = useCallback(async (file: File) => {
+        try {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const size = readPngSize(bytes);
+            if (!size || size.width !== 256 || size.height !== 256) {
+                consoleAppend('error',
+                    size
+                        ? `Not a TinyBit cartridge (expected 256×256 PNG, got ${size.width}×${size.height})`
+                        : 'Not a TinyBit cartridge (expected 256×256 PNG)');
+                return;
+            }
+            setPendingUpload({ bytes, filename: file.name });
+        } catch (err) {
+            consoleAppend('error', err instanceof Error ? err.message : String(err));
+        }
+    }, [consoleAppend]);
+
+    const handleConfirmReplace = useCallback(() => {
+        const pu = pendingUpload;
+        setPendingUpload(null);
+        if (!pu || !runtime || !runtime.decoderAvailable) {
+            if (pu) consoleAppend('error', 'Decoder not available in this WASM build.');
+            return;
+        }
+        try {
+            const result = runtime.dec.decode(pu.bytes);
+            sketch.loadCartridge({
+                title:  result.title,
+                author: result.author,
+                sprite: result.sprite,
+                cover:  result.cover,
+                script: result.script,
+            });
+            consoleAppend('log', `Loaded '${result.title || 'untitled'}' by ${result.author || '<unknown>'}`);
+            if (!result.crcOk) {
+                consoleAppend('warn', 'Loaded with CRC mismatch (script may be corrupted)');
+            }
+        } catch (err) {
+            if (err instanceof DecodeError) consoleAppend('error', `Decode failed (${err.code}): ${err.message}`);
+            else consoleAppend('error', err instanceof Error ? err.message : String(err));
+        }
+    }, [pendingUpload, runtime, sketch, consoleAppend]);
+
+    const handleConfirmCancel = useCallback(() => {
+        setPendingUpload(null);
+    }, []);
+
+    const handleOpenClick = useCallback(() => {
+        openInputRef.current?.click();
+    }, []);
+
+    const onOpenInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        e.target.value = ''; // allow re-picking the same file
+        if (f) void acceptFile(f);
+    }, [acceptFile]);
+
+    // Drag-and-drop wiring ───────────────────────────────────────────────────
+
+    useEffect(() => {
+        const onDragEnter = (e: DragEvent) => {
+            if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+            e.preventDefault();
+            dragDepthRef.current += 1;
+            setIsDragging(true);
+        };
+        const onDragOver = (e: DragEvent) => {
+            if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        };
+        const onDragLeave = (e: DragEvent) => {
+            if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+            e.preventDefault();
+            dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+            if (dragDepthRef.current === 0) setIsDragging(false);
+        };
+        const onDrop = (e: DragEvent) => {
+            if (!e.dataTransfer) return;
+            e.preventDefault();
+            dragDepthRef.current = 0;
+            setIsDragging(false);
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                void acceptFile(files[0]);
+            }
+        };
+        window.addEventListener('dragenter', onDragEnter);
+        window.addEventListener('dragover',  onDragOver);
+        window.addEventListener('dragleave', onDragLeave);
+        window.addEventListener('drop',      onDrop);
+        return () => {
+            window.removeEventListener('dragenter', onDragEnter);
+            window.removeEventListener('dragover',  onDragOver);
+            window.removeEventListener('dragleave', onDragLeave);
+            window.removeEventListener('drop',      onDrop);
+        };
+    }, [acceptFile]);
+
+    // Encode / play / download ───────────────────────────────────────────────
 
     const buildCartridge = useCallback(async (): Promise<Uint8Array | null> => {
         if (!runtime || !runtime.encoderAvailable) {
@@ -173,8 +298,17 @@ export function App() {
                 canPlay={canPlay}
                 onPlay={handlePlay}
                 onStop={handleStop}
+                onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
+            />
+            <input
+                ref={openInputRef}
+                data-testid="open-input"
+                type="file"
+                accept=".png,image/png"
+                style={{ display: 'none' }}
+                onChange={onOpenInputChange}
             />
             <AppSplit
                 left={
@@ -187,6 +321,14 @@ export function App() {
                 rightTop={<CanvasPane ref={canvasRef} />}
                 rightBottom={<ConsolePane />}
             />
+            {isDragging && <div style={dropOverlayStyle}>Drop .tb.png to open</div>}
+            {pendingUpload && (
+                <UploadConfirm
+                    filename={pendingUpload.filename}
+                    onReplace={handleConfirmReplace}
+                    onCancel={handleConfirmCancel}
+                />
+            )}
         </div>
     );
 }
