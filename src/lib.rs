@@ -25,7 +25,6 @@ const ENC_SLOT_SCRIPT: u32 = 2;
 const ENC_SLOT_FRAME:  u32 = 3;
 const ENC_SLOT_TITLE:  u32 = 4;
 const ENC_SLOT_AUTHOR: u32 = 5;
-const ENC_SLOT_COUNT:  u32 = 6;
 
 // Slot capacities. Sized for worst-case PNG payloads of the relevant dimensions
 // plus headroom. SCRIPT slot fits the SCRIPT_MAX limit exactly.
