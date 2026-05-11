@@ -15,8 +15,14 @@ export interface Spritesheet {
 
 const SIZE = 128;
 
+// Pack RGBA8 into the engine's uint16 pixel format:
+// low byte  = RRRRGGGG  (R in high nibble, G in low nibble)
+// high byte = BBBBAAAA  (B in high nibble, A in low nibble)
+// Matches pack_color() in graphics.h and the cartridge decoder in cartridge.c.
 function pack4444(r: number, g: number, b: number, a: number): number {
-    return ((r >>> 4) << 12) | ((g >>> 4) << 8) | ((b >>> 4) << 4) | (a >>> 4);
+    const rg = (r & 0xF0) | (g >>> 4);
+    const ba = (b & 0xF0) | (a >>> 4);
+    return rg | (ba << 8);
 }
 
 export function makeSpritesheet(deps: SpritesheetDeps): Spritesheet {

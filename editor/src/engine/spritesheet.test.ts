@@ -6,7 +6,7 @@ function fakeMemory(byteLen = 1024 * 1024) {
 }
 
 describe('spritesheet mirror', () => {
-    test('mirror packs RGBA8 → RGBA4444 nibble order matches encoder', () => {
+    test('mirror packs RGBA8 → engine uint16 format matching pack_color in graphics.h', () => {
         const mem = fakeMemory();
         const ptr = 1024;
         const view = new Uint16Array(mem.buffer, ptr, 16384);
@@ -14,8 +14,10 @@ describe('spritesheet mirror', () => {
         const pixels = new Uint8Array(128 * 128 * 4);
         pixels[0] = 0xF0; pixels[1] = 0xA0; pixels[2] = 0x10; pixels[3] = 0xFF;
         ss.mirror(pixels, { x: 0, y: 0, w: 1, h: 1 });
-        // Packing: ((0xF)<<12) | ((0xA)<<8) | ((0x1)<<4) | 0xF = 0xFA1F
-        expect(view[0]).toBe(0xFA1F);
+        // low byte = RRRRGGGG = (0xF0 & 0xF0) | (0xA0 >> 4) = 0xF0 | 0x0A = 0xFA
+        // high byte = BBBBAAAA = (0x10 & 0xF0) | (0xFF >> 4) = 0x10 | 0x0F = 0x1F
+        // uint16 = 0xFA | (0x1F << 8) = 0x1FFA
+        expect(view[0]).toBe(0x1FFA);
     });
 
     test('mirror is a no-op when not running', () => {

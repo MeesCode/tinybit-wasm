@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
+import { useSpriteEditorStore } from './state/spriteEditorStore';
 import { loadSketch, saveSketchDebounced } from './state/persist';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
@@ -20,6 +21,11 @@ import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
+
+if ((import.meta as unknown as { env: { DEV: boolean } }).env.DEV) {
+    (window as unknown as Record<string, unknown>).useSketchStore = useSketchStore;
+    (window as unknown as Record<string, unknown>).useSpriteEditorStore = useSpriteEditorStore;
+}
 
 const dropOverlayStyle: CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 9998,
