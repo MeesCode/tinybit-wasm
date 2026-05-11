@@ -9,7 +9,7 @@ pub use header::HeaderOpts;
 
 use crate::encoder::image::{CART_RGBA_LEN, SCREEN_RGBA_LEN};
 
-pub const SCRIPT_MAX: usize = 32_621;       // see spec §"Byte-budget sanity check"
+pub const SCRIPT_MAX: usize = crate::bindings::TB_MEM_SCRIPT_SIZE - 1; // 32621; reserve 1 byte for trailing NUL
 pub const TITLE_MAX_UTF8: usize = 63;
 pub const AUTHOR_MAX_UTF8: usize = 63;
 

@@ -16,8 +16,9 @@ pub const TB_SCREEN_WIDTH: usize = 128;
 pub const TB_SCREEN_HEIGHT: usize = 128;
 pub const TB_AUDIO_SAMPLE_RATE: u32 = 22_000;
 pub const TB_AUDIO_FRAME_SAMPLES: usize = 367;
+pub const TB_HEADER_SIZE: usize = 146;
 
-pub const TB_MEM_SCRIPT_SIZE: usize = 32 * 1024;
+pub const TB_MEM_SCRIPT_SIZE: usize = 32 * 1024 - TB_HEADER_SIZE;
 pub const TB_MEM_LUA_STATE_SIZE: usize = 256 * 1024;
 pub const TB_MEM_AUDIO_DATA_SIZE: usize = 12 * 1024;
 pub const TB_MEM_PNGLE_SIZE: usize = 48 * 1024;
@@ -41,31 +42,33 @@ pub const TB_BUTTON_COUNT: TinyBitButton = 8;
 
 #[repr(C)]
 pub struct TinyBitMemory {
-    pub spritesheet: [u16; TB_SCREEN_WIDTH * TB_SCREEN_HEIGHT],
-    pub display: [u16; TB_SCREEN_WIDTH * TB_SCREEN_HEIGHT],
-    pub script: [u8; TB_MEM_SCRIPT_SIZE],
-    pub lua_state: [u8; TB_MEM_LUA_STATE_SIZE],
-    pub audio_data: [u8; TB_MEM_AUDIO_DATA_SIZE],
-    pub pngle_data: [u8; TB_MEM_PNGLE_SIZE],
+    pub header:       [u8;  TB_HEADER_SIZE],
+    pub spritesheet:  [u16; TB_SCREEN_WIDTH * TB_SCREEN_HEIGHT],
+    pub display:      [u16; TB_SCREEN_WIDTH * TB_SCREEN_HEIGHT],
+    pub script:       [u8;  TB_MEM_SCRIPT_SIZE],
+    pub lua_state:    [u8;  TB_MEM_LUA_STATE_SIZE],
+    pub audio_data:   [u8;  TB_MEM_AUDIO_DATA_SIZE],
+    pub pngle_data:   [u8;  TB_MEM_PNGLE_SIZE],
     pub audio_buffer: [i16; TB_AUDIO_FRAME_SAMPLES],
-    pub button_input: [u8; TB_MEM_BUTTON_INPUT_SIZE],
-    pub user: [u8; TB_MEM_USER_SIZE],
+    pub button_input: [u8;  TB_MEM_BUTTON_INPUT_SIZE],
+    pub user:         [u8;  TB_MEM_USER_SIZE],
 }
 
 // --- Layout assertions (must match the bindgen-generated offsets) ----------
 
 const _: () = {
     use core::mem::offset_of;
-    assert!(offset_of!(TinyBitMemory, spritesheet) == 0);
-    assert!(offset_of!(TinyBitMemory, display) == 32_768);
-    assert!(offset_of!(TinyBitMemory, script) == 65_536);
-    assert!(offset_of!(TinyBitMemory, lua_state) == 98_304);
-    assert!(offset_of!(TinyBitMemory, audio_data) == 360_448);
-    assert!(offset_of!(TinyBitMemory, pngle_data) == 372_736);
+    assert!(offset_of!(TinyBitMemory, header)       == 0);
+    assert!(offset_of!(TinyBitMemory, spritesheet)  == 146);
+    assert!(offset_of!(TinyBitMemory, display)      == 32_914);
+    assert!(offset_of!(TinyBitMemory, script)       == 65_682);
+    assert!(offset_of!(TinyBitMemory, lua_state)    == 98_304);
+    assert!(offset_of!(TinyBitMemory, audio_data)   == 360_448);
+    assert!(offset_of!(TinyBitMemory, pngle_data)   == 372_736);
     assert!(offset_of!(TinyBitMemory, audio_buffer) == 421_888);
     assert!(offset_of!(TinyBitMemory, button_input) == 422_622);
-    assert!(offset_of!(TinyBitMemory, user) == 422_630);
-    assert!(core::mem::size_of::<TinyBitMemory>() == 432_870);
+    assert!(offset_of!(TinyBitMemory, user)         == 422_630);
+    assert!(core::mem::size_of::<TinyBitMemory>()   == 432_870);
 };
 
 // --- Callback function pointer types ---------------------------------------
