@@ -9,6 +9,7 @@ export interface ToolbarProps {
     canPlay: boolean;
     onPlay():   void;
     onStop():   void;
+    onOpen():   void;
     onDownload(): void;
     onResetEngine?(): void;
 }
@@ -31,7 +32,7 @@ const brandStyle: CSSProperties = {
     marginRight: 8,
 };
 
-const stopStyle: CSSProperties = {
+const neutralStyle: CSSProperties = {
     padding: '6px 10px',
     borderRadius: 6,
     fontSize: 13,
@@ -55,8 +56,11 @@ export function Toolbar(p: ToolbarProps) {
         <div style={barStyle}>
             <span style={brandStyle}>tinybit</span>
             <PlayButton running={running} disabled={!p.canPlay} onClick={p.onPlay} />
-            <button type="button" onClick={p.onStop} disabled={!running} style={{ ...stopStyle, opacity: running ? 1 : 0.4 }} aria-label="Stop">
+            <button type="button" onClick={p.onStop} disabled={!running} style={{ ...neutralStyle, opacity: running ? 1 : 0.4 }} aria-label="Stop">
                 ■ Stop
+            </button>
+            <button type="button" onClick={p.onOpen} style={neutralStyle} aria-label="Open">
+                📂 Open
             </button>
             <DownloadButton disabled={!p.canPlay} onClick={p.onDownload} />
             <span style={{
