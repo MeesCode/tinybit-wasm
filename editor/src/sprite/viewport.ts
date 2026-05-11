@@ -47,9 +47,3 @@ export function anchoredZoom(vp: Viewport, newZoom: Zoom, anchor: { sx: number; 
     return { zoom: newZoom, pan: { x: newPanX, y: newPanY } };
 }
 
-export function fitZoom(canvasW: number, canvasH: number): Zoom {
-    const max = Math.min(canvasW, canvasH) / SPRITE_SIZE;
-    let best: Zoom = 1;
-    for (const z of ZOOM_LEVELS) if (z <= max) best = z;
-    return best;
-}
