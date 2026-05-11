@@ -4,7 +4,7 @@ import { nextZoom, prevZoom } from './viewport';
 
 const SIZES: PencilSize[] = [1, 2, 3, 4, 8];
 
-const railStyle: CSSProperties = { width: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: 6, background: '#F6F6F8', borderRight: '1px solid #ECECF0', overflowY: 'auto' };
+const railStyle: CSSProperties = { width: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: 6, background: '#F6F6F8', borderRight: '1px solid #ECECF0', overflowY: 'auto', overflowX: 'hidden' };
 const btnStyle = (active: boolean): CSSProperties => ({
     width: 32, height: 32, borderRadius: 6, border: 'none',
     background: active ? '#ED225D' : '#FFFFFF',
