@@ -105,7 +105,7 @@ JS reads display/audio by constructing typed-array views over wasm memory at the
 ## Limitations
 
 - Single-sketch playground. No multi-cartridge library, no cloud save, no URL sharing.
-- The browser encoder caps scripts at 32 621 bytes — one less than the desktop encoder's 32 622, to keep the cartridge payload within 65 536 pixels including the trailing NUL.
+- The browser encoder caps scripts at 32 621 bytes, to keep the cartridge payload within 65 536 pixels including the trailing NUL.
 - Audio plays at the host `AudioContext` sample rate; if the browser refuses 22 kHz, pitch is off (no resampler is included).
 - Touch and gamepad input are not supported.
 - `os.tmpname()` from Lua is stubbed; cartridges that depend on it will get a no-op temp name.

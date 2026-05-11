@@ -30,7 +30,7 @@ The decoder feeds raw PNG bytes via `tb_feed_cartridge`. **Any encoder output th
 | Web UI | Collapsible "Create a cartridge" `<details>` panel in `web/index.html`. Four file pickers, four header text fields, Download / Play-now buttons. |
 | Input strictness | Cover & spritesheet must be exactly 128×128 PNG; reject otherwise. Frame override (optional) must be 256×256. |
 | Frame template | `assets/cartridge3.png` (copied from sibling `TinyBit/assets/`) bundled via `include_bytes!`. Optional user upload overrides it. |
-| Script limit | Hard reject when `script.len() > 32 621` (one less than the C encoder's 32 622, to keep total payload ≤ 65 536 pixels including the trailing NUL). Live "N / 32 621 (X %)" indicator in the UI. |
+| Script limit | Hard reject when `script.len() > 32 621` (to keep total payload ≤ 65 536 pixels including the trailing NUL). Live "N / 32 621 (X %)" indicator in the UI. |
 | Header defaults | All header fields optional. Defaults: `title="untitled", author="", format_version=1, flags=0, game_version=1, package_date=now`. |
 | Module layout | Submodule `src/encoder/{mod.rs, header.rs, steg.rs, image.rs, png_io.rs}`. Each file single-purpose, under ~150 lines, host-testable. |
 | Testing | Rust `#[cfg(test)]` unit tests on host target + extended `scripts/smoke.mjs` doing a wasm encode → wasm decode round-trip. |
@@ -224,7 +224,7 @@ pub fn encode(
 - Script + NUL: up to `script_len + 1` px
 - Total: `146 + 32 768 + script_len + 1 = 32 915 + script_len` px ≤ 65 536
 
-Solving: `script_len ≤ 32 621`. The C encoder allows 32 622 and overflows the cartridge buffer by 1 pixel; we enforce the safe limit. **One documented divergence from C.**
+Solving: `script_len ≤ 32 621`. Both the Rust and C encoders enforce this cap. (Originally a Rust-only safety margin — the C encoder allowed 32 622 and overflowed the cartridge buffer by 1 pixel; that was fixed in TinyBit commit `9334286` alongside the header-in-memory engine change.)
 
 ## Web UI & JS integration
 
@@ -396,7 +396,7 @@ After the existing flappy.tb.png test:
 ### Documentation
 
 - README "Play in a browser" section: mention the new "Create a cartridge" panel and that authored cartridges can be downloaded or played immediately.
-- README "Limitations" section: remove the `"No cartridge export"` bullet. Add a brief note about the 1-byte script-limit divergence from the C encoder.
+- README "Limitations" section: remove the `"No cartridge export"` bullet. Add a brief note about the 32 621-byte script-size cap.
 
 ## Size budget (approximate)
 
