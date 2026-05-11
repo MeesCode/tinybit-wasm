@@ -13,6 +13,7 @@ function mockExports() {
         tb_feed_buffer_ptr: vi.fn(() => 1024),
         tb_feed_cartridge: vi.fn(() => 1),
         tb_display_ptr: vi.fn(() => 2048),
+        tb_spritesheet_ptr: vi.fn(() => 8192),
         tb_audio_ptr: vi.fn(() => 4096),
     };
 }
