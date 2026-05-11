@@ -1,4 +1,5 @@
 mod encoder;
+mod decoder;
 mod bindings;
 
 use core::ffi::{c_char, c_int};
