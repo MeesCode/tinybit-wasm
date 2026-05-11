@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { useSpriteEditorStore } from '../state/spriteEditorStore';
 import { hexToRgba, rgbaToHex, unpackRgba8, packRgba8 } from './color';
 
@@ -12,6 +12,13 @@ const swatch = (rgba: number): CSSProperties => ({
 export function ColorPanel() {
     const { color, recent, setColor } = useSpriteEditorStore();
     const [draft, setDraft] = useState(rgbaToHex(color));
+    const focusedRef = useRef(false);
+
+    // Keep the hex input in sync with the store when the user isn't actively typing
+    // (eyedropper, recent-colour click, alpha slider all mutate `color` externally).
+    useEffect(() => {
+        if (!focusedRef.current) setDraft(rgbaToHex(color));
+    }, [color]);
 
     function commit() {
         const v = hexToRgba(draft);
@@ -31,7 +38,8 @@ export function ColorPanel() {
                     type="text"
                     value={draft}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
-                    onBlur={commit}
+                    onFocus={() => { focusedRef.current = true; }}
+                    onBlur={() => { focusedRef.current = false; commit(); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
                     style={{ width: 96, padding: '4px 6px', fontFamily: 'JetBrains Mono, monospace', fontSize: 12, border: '1px solid #ECECF0', borderRadius: 4 }}
                 />
