@@ -54,6 +54,43 @@ export function SpriteEditor() {
     }, []);
 
     const panStateRef = useRef<{ spaceDown: boolean; dragging: boolean; lastX: number; lastY: number }>({ spaceDown: false, dragging: false, lastX: 0, lastY: 0 });
+    const wheelAccumRef = useRef(0);
+
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el) return;
+        const STEP = 50;
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            // ctrlKey is also set by macOS pinch-zoom on trackpads.
+            if (e.ctrlKey || e.metaKey) {
+                wheelAccumRef.current += e.deltaY;
+                while (wheelAccumRef.current <= -STEP) {
+                    const ed = useSpriteEditorStore.getState();
+                    const target = nextZoom(ed.zoom);
+                    if (target === ed.zoom) { wheelAccumRef.current = 0; break; }
+                    const rect = el.getBoundingClientRect();
+                    ed.setZoom(target, { sx: e.clientX - rect.left, sy: e.clientY - rect.top, canvasW: rect.width, canvasH: rect.height });
+                    wheelAccumRef.current += STEP;
+                }
+                while (wheelAccumRef.current >= STEP) {
+                    const ed = useSpriteEditorStore.getState();
+                    const target = prevZoom(ed.zoom);
+                    if (target === ed.zoom) { wheelAccumRef.current = 0; break; }
+                    const rect = el.getBoundingClientRect();
+                    ed.setZoom(target, { sx: e.clientX - rect.left, sy: e.clientY - rect.top, canvasW: rect.width, canvasH: rect.height });
+                    wheelAccumRef.current -= STEP;
+                }
+            } else {
+                wheelAccumRef.current = 0;
+                const ed = useSpriteEditorStore.getState();
+                const z = ed.zoom;
+                ed.setPan({ x: ed.pan.x - e.deltaX / z, y: ed.pan.y - e.deltaY / z });
+            }
+        };
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, []);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => { if (e.key === ' ') panStateRef.current.spaceDown = true; };
@@ -91,15 +128,6 @@ export function SpriteEditor() {
             e.preventDefault();
             e.stopPropagation();
         }
-    }
-
-    function onWheel(e: React.WheelEvent<HTMLDivElement>) {
-        e.preventDefault();
-        const ed = useSpriteEditorStore.getState();
-        const target = e.deltaY < 0 ? nextZoom(ed.zoom) : prevZoom(ed.zoom);
-        if (target === ed.zoom) return;
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        ed.setZoom(target, { sx: e.clientX - rect.left, sy: e.clientY - rect.top, canvasW: rect.width, canvasH: rect.height });
     }
 
     function handlePointer(...args: Parameters<PointerCb>): void {
@@ -217,7 +245,7 @@ export function SpriteEditor() {
     }
 
     return (
-        <div ref={rootRef} tabIndex={0} style={root} onKeyDown={handleKey} onMouseDownCapture={onMouseDownCapture} onWheel={onWheel} onContextMenu={(e) => e.preventDefault()}>
+        <div ref={rootRef} tabIndex={0} style={root} onKeyDown={handleKey} onMouseDownCapture={onMouseDownCapture} onContextMenu={(e) => e.preventDefault()}>
             <div style={railCell}><ToolRail /></div>
             <div style={canvasCell}><PixelCanvas onPointer={handlePointer} /></div>
             <div style={bottomCell}><ColorPanel /></div>
