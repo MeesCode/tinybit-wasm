@@ -1,0 +1,144 @@
+<h2>Which overall layout feels right?</h2>
+<p class="subtitle">All three have the same elements (top toolbar, code editor, game canvas, console, cartridge panel) — they differ in how the space is divided. Hover/click a card to pick.</p>
+
+<style>
+  .layout-card { padding: 0; }
+  .layout-mock { width: 100%; aspect-ratio: 16 / 10; background: #0d0e10; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; font-family: ui-monospace, monospace; font-size: 10px; color: #aaa; }
+  .lm-row { display: flex; flex: 1; min-height: 0; }
+  .lm-toolbar { height: 22px; background: #15171a; border-bottom: 1px solid #222; display: flex; align-items: center; padding: 0 8px; gap: 8px; flex-shrink: 0; }
+  .lm-brand { color: #ff5cb1; font-weight: 700; letter-spacing: 0.5px; }
+  .lm-btn { background: #22252a; color: #eee; border-radius: 3px; padding: 1px 6px; font-size: 9px; }
+  .lm-btn.play { background: #2bd07a; color: #0d0e10; font-weight: 700; }
+  .lm-pane { padding: 8px; overflow: hidden; }
+  .lm-editor { background: #16181c; color: #6c7079; flex: 1; }
+  .lm-editor .lm-line { display: flex; gap: 8px; }
+  .lm-editor .lm-no { color: #3a3f47; min-width: 14px; text-align: right; }
+  .lm-editor .lm-code .kw { color: #ff5cb1; }
+  .lm-editor .lm-code .id { color: #7ee0ff; }
+  .lm-editor .lm-code .num { color: #ffd366; }
+  .lm-canvas { background: #0a0a0a; display: flex; align-items: center; justify-content: center; }
+  .lm-canvas-inner { width: 60%; aspect-ratio: 1; background: linear-gradient(135deg, #1a2333, #2b1530); border: 1px solid #333; image-rendering: pixelated; }
+  .lm-console { background: #0a0a0c; color: #888; border-top: 1px solid #222; padding: 4px 8px; flex-shrink: 0; }
+  .lm-console .lm-warn { color: #ffd366; }
+  .lm-console .lm-err { color: #ff6f6f; }
+  .lm-tabs { display: flex; background: #15171a; border-bottom: 1px solid #222; flex-shrink: 0; }
+  .lm-tab { padding: 4px 10px; font-size: 9px; color: #888; border-right: 1px solid #222; }
+  .lm-tab.active { color: #fff; background: #16181c; }
+  .lm-cartridge { background: #15171a; border-left: 1px solid #222; padding: 8px; font-size: 9px; }
+  .lm-cartridge h4 { color: #ff5cb1; margin: 0 0 4px 0; font-size: 9px; font-weight: 700; }
+  .lm-field { color: #6c7079; margin-bottom: 2px; }
+  .lm-thumb { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg, #2a1a3a, #1a3a2a); border: 1px solid #333; margin-top: 4px; }
+  .lm-collapsed { padding: 4px 8px; font-size: 9px; color: #888; background: #15171a; border-top: 1px solid #222; flex-shrink: 0; }
+  .lm-label { font-size: 9px; color: #666; padding: 0 4px; }
+</style>
+
+<div class="cards">
+  <div class="card layout-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-mock">
+        <div class="lm-toolbar">
+          <span class="lm-brand">tinybit</span>
+          <span class="lm-btn play">▶ Play</span>
+          <span class="lm-btn">■</span>
+          <span class="lm-btn">⬇ Download</span>
+          <span style="flex:1"></span>
+          <span class="lm-btn">cartridge ▾</span>
+        </div>
+        <div class="lm-row">
+          <div class="lm-pane lm-editor" style="flex:1;">
+            <div class="lm-tabs" style="margin:-8px -8px 4px;"><span class="lm-tab active">script.lua</span><span class="lm-tab">alt</span></div>
+            <div class="lm-line"><span class="lm-no">1</span><span class="lm-code"><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+            <div class="lm-line"><span class="lm-no">2</span><span class="lm-code">&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0000</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">3</span><span class="lm-code">&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>, <span class="num">60</span>, <span class="num">60</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">4</span><span class="lm-code"><span class="kw">end</span></span></div>
+          </div>
+          <div class="lm-canvas" style="flex:1;"><div class="lm-canvas-inner"></div></div>
+        </div>
+        <div class="lm-console">
+          <div>&gt; loaded sketch (213 bytes)</div>
+          <div class="lm-warn">&gt; warn: spritesheet pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Split 50/50, full-width console</h3>
+      <p>Classic p5.js-editor split. Editor left, canvas right, full-width console at the bottom. Cartridge metadata lives behind the "cartridge ▾" toolbar button (slides down).</p>
+    </div>
+  </div>
+
+  <div class="card layout-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-mock">
+        <div class="lm-toolbar">
+          <span class="lm-brand">tinybit</span>
+          <span class="lm-btn play">▶ Play</span>
+          <span class="lm-btn">■</span>
+          <span class="lm-btn">⬇ Download</span>
+        </div>
+        <div class="lm-row">
+          <div class="lm-pane lm-editor" style="flex:1.2;">
+            <div class="lm-tabs" style="margin:-8px -8px 4px;"><span class="lm-tab active">script.lua</span><span class="lm-tab">alt</span><span class="lm-tab">cartridge</span></div>
+            <div class="lm-line"><span class="lm-no">1</span><span class="lm-code"><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+            <div class="lm-line"><span class="lm-no">2</span><span class="lm-code">&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0000</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">3</span><span class="lm-code">&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>, <span class="num">60</span>, <span class="num">60</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">4</span><span class="lm-code"><span class="kw">end</span></span></div>
+            <div class="lm-line"><span class="lm-no">5</span><span class="lm-code"></span></div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+            <div class="lm-canvas" style="flex:1; border-left:1px solid #222;"><div class="lm-canvas-inner"></div></div>
+            <div class="lm-console" style="height:34%; border-left:1px solid #222;">
+              <div>&gt; loaded sketch</div>
+              <div class="lm-warn">&gt; warn: sprite</div>
+              <div class="lm-err">&gt; err: nil index</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Editor full-height, canvas+console stacked right</h3>
+      <p>Editor takes the full left height (more code visible). Canvas top-right, console under the canvas (only right column). Cartridge as a third sidebar tab next to script/alt.</p>
+    </div>
+  </div>
+
+  <div class="card layout-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="layout-mock">
+        <div class="lm-toolbar">
+          <span class="lm-brand">tinybit</span>
+          <span class="lm-btn play">▶ Play</span>
+          <span class="lm-btn">■</span>
+          <span class="lm-btn">⬇</span>
+          <span style="flex:1"></span>
+          <span class="lm-label">flappy.lua · 213 B</span>
+        </div>
+        <div class="lm-row">
+          <div class="lm-pane lm-editor" style="flex:1;">
+            <div class="lm-tabs" style="margin:-8px -8px 4px;"><span class="lm-tab active">script</span><span class="lm-tab">alt</span></div>
+            <div class="lm-line"><span class="lm-no">1</span><span class="lm-code"><span class="kw">function</span> <span class="id">_draw</span>()</span></div>
+            <div class="lm-line"><span class="lm-no">2</span><span class="lm-code">&nbsp;&nbsp;<span class="id">cls</span>(<span class="num">0x0</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">3</span><span class="lm-code">&nbsp;&nbsp;<span class="id">spr</span>(<span class="num">0</span>,<span class="num">60</span>,<span class="num">60</span>)</span></div>
+            <div class="lm-line"><span class="lm-no">4</span><span class="lm-code"><span class="kw">end</span></span></div>
+          </div>
+          <div class="lm-canvas" style="flex:1.1; border-left:1px solid #222;"><div class="lm-canvas-inner" style="width:72%;"></div></div>
+          <div class="lm-cartridge" style="width:24%;">
+            <h4>CARTRIDGE</h4>
+            <div class="lm-field">title flappy</div>
+            <div class="lm-field">author mees</div>
+            <div class="lm-field">cover</div>
+            <div class="lm-thumb"></div>
+            <div class="lm-field" style="margin-top:6px;">sprite ↑</div>
+          </div>
+        </div>
+        <div class="lm-console">
+          <div>&gt; loaded sketch (213 bytes)</div>
+          <div class="lm-warn">&gt; warn: spritesheet pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Three columns: editor / canvas / cartridge</h3>
+      <p>Cartridge metadata is always visible as a third right-side panel. Most "authoring tool"-like. Trades editor width for transparency. Closer to the "Always-visible metadata strip" option you didn't pick — included only as a sanity check.</p>
+    </div>
+  </div>
+</div>
