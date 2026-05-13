@@ -6,6 +6,7 @@ import { findScores, type ScoreLink, type Diagnostic } from './scoreLinks';
 import { insertNewScoreSnippet, replaceScoreContent } from './scoreSync';
 import { ScoreEditor } from './ScoreEditor';
 import { ScorePreview } from './ScorePreview';
+import { countAbc, noteStatus, voiceStatus, MUSIC_MAX_NOTES, MAX_VOICES, type CountStatus } from './abcCounts';
 import type { Preview } from '../engine/preview';
 
 const wrap: CSSProperties = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 };
@@ -34,7 +35,26 @@ const transportBar: CSSProperties = {
     padding: '6px 8px', display: 'flex', gap: 6,
     borderTop: '1px solid #ECECF0', background: '#FAFAFA',
     flex: '0 0 auto',
+    alignItems: 'center',
 };
+const COUNT_COLORS: Record<CountStatus, { color: string; background: string; border: string }> = {
+    ok:   { color: '#6B6B76', background: '#FFFFFF', border: '#ECECF0' },
+    warn: { color: '#92400E', background: '#FEF3C7', border: '#FBBF24' },  // amber
+    over: { color: '#FFFFFF', background: '#DC2626', border: '#B91C1C' },  // red
+};
+function countBadgeStyle(status: CountStatus): CSSProperties {
+    const c = COUNT_COLORS[status];
+    return {
+        marginLeft: 'auto', // pushes first badge to the right edge; subsequent badges keep their own marginLeft
+        padding: '3px 8px', fontSize: 11, fontWeight: 600,
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+        borderRadius: 4,
+        color: c.color, background: c.background, border: '1px solid ' + c.border,
+    };
+}
+function countBadgeFollowerStyle(status: CountStatus): CSSProperties {
+    return { ...countBadgeStyle(status), marginLeft: 4 };
+}
 const transportBtn = (disabled: boolean): CSSProperties => ({
     padding: '4px 10px', fontSize: 12, fontWeight: 600,
     borderRadius: 4, border: '1px solid #ED225D',
@@ -174,6 +194,10 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
 
     const handleStop = useCallback(() => { preview.stop(); }, [preview]);
 
+    const counts = useMemo(() => countAbc(buffer), [buffer]);
+    const nStatus = noteStatus(counts.notes);
+    const vStatus = voiceStatus(counts.voices);
+
     const linkStale = selectedId != null && !selectedLink;
 
     return (
@@ -222,6 +246,16 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                         <button type="button" style={transportBtn(false)}
                             onClick={handleStop} aria-label="stop">⏹ Stop</button>
                         {!previewAvailable && <span style={{ fontSize: 11, color: '#6B6B76', alignSelf: 'center' }}>Preview requires rebuilding the WASM</span>}
+                        <span
+                            style={countBadgeStyle(nStatus)}
+                            title={nStatus === 'over' ? `Over engine limit of ${MUSIC_MAX_NOTES} notes per voice` : `Notes (max ${MUSIC_MAX_NOTES} per voice)`}>
+                            {counts.notes}/{MUSIC_MAX_NOTES} notes
+                        </span>
+                        <span
+                            style={countBadgeFollowerStyle(vStatus)}
+                            title={vStatus === 'over' ? `Over engine limit of ${MAX_VOICES} voices` : `Voices (max ${MAX_VOICES})`}>
+                            {counts.voices}/{MAX_VOICES} voices
+                        </span>
                     </div>
                 </>
             )}
