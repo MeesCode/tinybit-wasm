@@ -74,3 +74,59 @@ describe('findScores — long-bracket form', () => {
         expect(diagnostics[0]).toMatchObject({ kind: 'unbound-annotation', line: 1 });
     });
 });
+
+describe('findScores — quoted form', () => {
+    it('detects --@score with "..." literal and decodes \\n', () => {
+        const script = `--@score\nlocal v = "L:1/4\\nK:C\\nC4"\n`;
+        const { links } = findScores(script);
+        expect(links).toHaveLength(1);
+        expect(links[0].form).toEqual({ kind: 'quoted', quote: '"' });
+        expect(links[0].content).toBe('L:1/4\nK:C\nC4');
+    });
+
+    it("detects --@score with '...' literal", () => {
+        const script = `--@score\nlocal v = 'c/4d/4'\n`;
+        const { links } = findScores(script);
+        expect(links[0].form).toEqual({ kind: 'quoted', quote: "'" });
+        expect(links[0].content).toBe('c/4d/4');
+    });
+});
+
+describe('findScores — robustness', () => {
+    it('ignores --@score appearing inside a string literal', () => {
+        const script = `local x = "--@score actually inside a string"\nlocal y = 1\n`;
+        const { links, diagnostics } = findScores(script);
+        expect(links).toEqual([]);
+        expect(diagnostics).toEqual([]);
+    });
+
+    it('ignores --@score inside a long-bracket literal', () => {
+        const script = `local x = [[\n--@score not an annotation\n]]\nlocal y = 1\n`;
+        expect(findScores(script).links).toEqual([]);
+    });
+
+    it('ignores --@score inside a --[[ ... ]] block comment', () => {
+        const script = `--[[ --@score not an annotation ]]\nlocal y = 1\n`;
+        expect(findScores(script).links).toEqual([]);
+    });
+
+    it('produces a duplicate-name diagnostic when two scores share a name', () => {
+        const script =
+            `--@score: tune\nlocal a = [[K:C\nC\n]]\n` +
+            `--@score: tune\nlocal b = [[K:C\nD\n]]\n`;
+        const { links, diagnostics } = findScores(script);
+        expect(links).toHaveLength(2);
+        const dups = diagnostics.filter((d) => d.kind === 'duplicate-name');
+        expect(dups).toHaveLength(1);
+    });
+
+    it('returns multiple links in script order', () => {
+        const script =
+            `--@score: first\nlocal a = [[K:C\nC\n]]\n` +
+            `--@score: second\nlocal b = [[K:C\nD\n]]\n`;
+        const { links } = findScores(script);
+        expect(links.map((l) => l.name)).toEqual(['first', 'second']);
+        expect(links[0].annotationLine).toBe(1);
+        expect(links[1].annotationLine).toBe(5);
+    });
+});
