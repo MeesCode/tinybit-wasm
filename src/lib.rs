@@ -698,3 +698,96 @@ pub extern "C" fn tb_dec_error_len() -> u32 {
     DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.error_msg.len() as u32; }});
     n
 }
+
+// ── Preview FFI ─────────────────────────────────────────────────────────────
+//
+// Used by the in-editor Score tab to audition a single ABC string through the
+// engine without building or loading a cartridge. Reuses the existing audio
+// worklet path (audio_buffer + tb_audio_ptr). The script Lua VM is unaffected.
+
+const PREVIEW_BUF_CAP: usize = 32 * 1024;
+
+struct PreviewState {
+    buf: Vec<u8>, // capacity = PREVIEW_BUF_CAP + 1 (room for trailing NUL)
+}
+
+impl PreviewState {
+    fn new() -> Self {
+        Self { buf: vec![0; PREVIEW_BUF_CAP + 1] }
+    }
+}
+
+thread_local! {
+    static PREVIEW_STATE: RefCell<Option<PreviewState>> = const { RefCell::new(None) };
+}
+
+fn preview_ensure_init() {
+    PREVIEW_STATE.with(|cell| {
+        if cell.borrow().is_none() {
+            *cell.borrow_mut() = Some(PreviewState::new());
+        }
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_ptr() -> *mut u8 {
+    preview_ensure_init();
+    let mut ptr: *mut u8 = core::ptr::null_mut();
+    PREVIEW_STATE.with(|cell| {
+        if let Some(state) = cell.borrow_mut().as_mut() {
+            ptr = state.buf.as_mut_ptr();
+        }
+    });
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_cap() -> u32 {
+    PREVIEW_BUF_CAP as u32
+}
+
+fn preview_play(channel: c_int, len: u32, repeat: bool) -> i32 {
+    let len = len as usize;
+    if len > PREVIEW_BUF_CAP {
+        return -3; // oversized
+    }
+    preview_ensure_init();
+    let mut result: i32 = -1;
+    PREVIEW_STATE.with(|cell| {
+        let mut borrow = cell.borrow_mut();
+        let Some(state) = borrow.as_mut() else { return; };
+        // UTF-8 validate the prefix.
+        if core::str::from_utf8(&state.buf[..len]).is_err() {
+            result = -4;
+            return;
+        }
+        // Append trailing NUL so it's a valid C string.
+        state.buf[len] = 0;
+        let rc = unsafe {
+            bindings::audio_load_abc(
+                channel,
+                state.buf.as_ptr() as *const core::ffi::c_char,
+                bindings::TB_WAVE_SINE,
+                repeat,
+            )
+        };
+        // audio_load_abc returns 0 on success, negative on parser failure.
+        result = rc;
+    });
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_music_play(len: u32) -> i32 {
+    preview_play(bindings::TB_CHANNEL_MUSIC, len, true)
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_sfx_play(len: u32) -> i32 {
+    preview_play(bindings::TB_CHANNEL_SFX, len, false)
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_stop() {
+    unsafe { bindings::audio_stop_all(); }
+}
