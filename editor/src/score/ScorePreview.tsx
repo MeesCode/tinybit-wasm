@@ -54,16 +54,36 @@ export function ScorePreview({ abc }: ScorePreviewProps) {
         return () => { cancelled = true; };
     }, []);
 
+    // Track the container width so we can pass a staffwidth to abcjs. We avoid
+    // `responsive: 'resize'` because it fits the SVG to the container in both
+    // dimensions, defeating vertical scrolling on tall scores. With an explicit
+    // staffwidth the SVG fits horizontally and grows vertically as needed.
+    const [hostWidth, setHostWidth] = useState(0);
+    useEffect(() => {
+        const el = hostRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver((entries) => {
+            for (const e of entries) {
+                const w = e.contentRect.width;
+                if (w > 0) setHostWidth(Math.floor(w));
+            }
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
     useEffect(() => {
         if (!renderAbc || !hostRef.current) return;
         setError(null);
         try {
-            renderAbc(hostRef.current, abc, { responsive: 'resize' });
+            const opts: Record<string, unknown> = { scale: 1 };
+            if (hostWidth > 40) opts.staffwidth = hostWidth - 32;  // subtract padding for breathing room
+            renderAbc(hostRef.current, abc, opts);
         } catch (err) {
             hostRef.current.innerHTML = '';
             setError(err instanceof Error ? err.message : String(err));
         }
-    }, [renderAbc, abc]);
+    }, [renderAbc, abc, hostWidth]);
 
     return (
         <div style={outerWrap}>
