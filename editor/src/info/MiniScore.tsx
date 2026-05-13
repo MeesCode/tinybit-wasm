@@ -10,6 +10,20 @@ const errorBand: CSSProperties = {
     fontFamily: "'JetBrains Mono', ui-monospace, monospace",
 };
 
+// Module-level cache so concurrent instances share one dynamic import.
+let abcjsPromise: Promise<RenderAbc | null> | null = null;
+function getAbcjs(): Promise<RenderAbc | null> {
+    if (!abcjsPromise) {
+        abcjsPromise = import('abcjs').then((mod) => {
+            const fn: RenderAbc | undefined =
+                (mod as { renderAbc?: RenderAbc }).renderAbc ??
+                ((mod as { default?: { renderAbc?: RenderAbc } }).default?.renderAbc);
+            return fn ?? null;
+        });
+    }
+    return abcjsPromise;
+}
+
 export interface MiniScoreProps {
     abc: string;
 }
@@ -21,12 +35,9 @@ export function MiniScore({ abc }: MiniScoreProps) {
 
     useEffect(() => {
         let cancelled = false;
-        import('abcjs')
-            .then((mod) => {
+        getAbcjs()
+            .then((fn) => {
                 if (cancelled) return;
-                const fn: RenderAbc | undefined =
-                    (mod as { renderAbc?: RenderAbc }).renderAbc ??
-                    ((mod as { default?: { renderAbc?: RenderAbc } }).default?.renderAbc);
                 if (!fn) { setError('abcjs module did not expose renderAbc'); return; }
                 setRenderAbc(() => fn);
             })
