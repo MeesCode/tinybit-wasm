@@ -1,19 +1,19 @@
 import { useEffect, useRef } from 'react';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers, drawSelection, keymap, highlightSpecialChars } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, foldGutter, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { luaLang } from './luaSupport';
+import { abcLang } from './abcMode';
 
-const bubblegum = HighlightStyle.define([
-    { tag: t.keyword,  color: '#ED225D', fontWeight: '600' },
-    { tag: t.string,   color: '#16A34A' },
-    { tag: t.number,   color: '#D97706' },
-    { tag: t.comment,  color: '#A0A0AA', fontStyle: 'italic' },
-    { tag: t.variableName, color: '#2563EB' },
-    { tag: t.operator, color: '#181820' },
-    { tag: t.bracket,  color: '#181820' },
+const abcHighlight = HighlightStyle.define([
+    { tag: t.keyword,      color: '#ED225D', fontWeight: '600' },  // headers (K:, M:, …)
+    { tag: t.variableName, color: '#181820' },                     // notes
+    { tag: t.operator,     color: '#6B6B76' },                     // bars + slurs
+    { tag: t.number,       color: '#D97706' },                     // durations + tuplets
+    { tag: t.definition(t.string), color: '#16A34A' },             // chord brackets
+    { tag: t.string,       color: '#16A34A' },
+    { tag: t.comment,      color: '#A0A0AA', fontStyle: 'italic' },
 ]);
 
 const editorTheme = EditorView.theme({
@@ -22,17 +22,15 @@ const editorTheme = EditorView.theme({
     '.cm-gutters': { backgroundColor: '#FAFAFA', color: '#A0A0AA', border: 'none' },
     '.cm-activeLine': { backgroundColor: '#FDE4EF44' },
     '.cm-activeLineGutter': { backgroundColor: '#FDE4EF88', color: '#ED225D' },
-    '.cm-selectionBackground, ::selection': { backgroundColor: '#FDE4EF !important' },
     '.cm-cursor': { borderLeftColor: '#ED225D', borderLeftWidth: '2px' },
 }, { dark: false });
 
-export interface CodeEditorProps {
+export interface ScoreEditorProps {
     value: string;
     onChange(v: string): void;
-    extraExtensions?: Extension[];
 }
 
-export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps) {
+export function ScoreEditor({ value, onChange }: ScoreEditorProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
     const onChangeRef = useRef(onChange);
@@ -50,17 +48,14 @@ export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps
                 history(),
                 indentOnInput(),
                 bracketMatching(),
-                luaLang(),
-                syntaxHighlighting(bubblegum),
+                abcLang(),
+                syntaxHighlighting(abcHighlight),
                 editorTheme,
-                EditorState.allowMultipleSelections.of(true),
-                EditorView.clickAddsSelectionRange.of((e) => e.ctrlKey || e.metaKey),
                 keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
                 EditorView.updateListener.of((u) => {
                     if (u.docChanged) onChangeRef.current(u.state.doc.toString());
                 }),
-                EditorView.contentAttributes.of({ 'aria-label': 'TinyBit Lua script editor' }),
-                ...(extraExtensions ?? []),
+                EditorView.contentAttributes.of({ 'aria-label': 'ABC score editor' }),
             ],
         });
         const view = new EditorView({ state, parent: hostRef.current });

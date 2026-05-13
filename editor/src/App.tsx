@@ -15,6 +15,10 @@ import { EditorPane, type EditorTab } from './ui/EditorPane';
 import { CodeEditor } from './editor/CodeEditor';
 import { CartridgeTab } from './ui/CartridgeTab';
 import { AltEditorTab } from './ui/AltEditorTab';
+import { ScoreTab } from './score/ScoreTab';
+import { scoreHoverTooltip } from './score/scoreHoverTooltip';
+import { HelpButton } from './info/HelpButton';
+import { ScriptApiModal } from './info/ScriptApiModal';
 import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
@@ -50,6 +54,8 @@ export function App() {
     const [bootError, setBootError] = useState<string | null>(null);
     const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+    const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -140,6 +146,14 @@ export function App() {
         window.addEventListener('keyup', up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, [runtime]);
+
+    const scoreHoverExtension = useMemo(
+        () => scoreHoverTooltip((id) => {
+            setSelectedLinkId(id);
+            setActiveTab('score');
+        }),
+        [],
+    );
 
     // Upload pipeline ────────────────────────────────────────────────────────
 
@@ -272,6 +286,9 @@ export function App() {
         const rt = runtime; const fl = frameLoopRef.current; const canvas = canvasRef.current?.getCanvas();
         if (!rt || !fl || !canvas) return;
         fl.stop();
+        // Tear down any in-flight Score-tab preview so it can't race the game
+        // for the engine's audio channels.
+        rt.preview.stop();
         const bytes = await buildCartridge();
         if (!bytes) return;
         try {
@@ -350,8 +367,36 @@ export function App() {
             <AppSplit
                 left={
                     <EditorPane active={activeTab} onChange={setActiveTab}>
-                        {activeTab === 'script' && <CodeEditor value={sketch.script} onChange={sketch.setScript} />}
+                        {activeTab === 'script' && (
+                            <div style={{ position: 'relative', height: '100%' }}>
+                                <CodeEditor
+                                    value={sketch.script}
+                                    onChange={sketch.setScript}
+                                    extraExtensions={[scoreHoverExtension]}
+                                />
+                                <HelpButton
+                                    onClick={() => setScriptHelpOpen(true)}
+                                    aria-label="Script API help"
+                                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}
+                                />
+                            </div>
+                        )}
                         {activeTab === 'alt' && <AltEditorTab />}
+                        {activeTab === 'score' && runtime && (
+                            <ScoreTab
+                                preview={runtime.preview}
+                                previewAvailable={runtime.previewAvailable}
+                                selectedLinkId={selectedLinkId ?? undefined}
+                                onSelectLink={setSelectedLinkId}
+                                onBeforePreview={() => {
+                                    // Mutex with the game: tear down any running cartridge
+                                    // so the engine's audio channels aren't being driven
+                                    // from two pumps at once.
+                                    frameLoopRef.current?.stop();
+                                    runtime.tb.stop();
+                                }}
+                            />
+                        )}
                         {activeTab === 'cartridge' && <CartridgeTab />}
                     </EditorPane>
                 }
@@ -366,6 +411,7 @@ export function App() {
                     onCancel={handleConfirmCancel}
                 />
             )}
+            <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
         </div>
     );
 }

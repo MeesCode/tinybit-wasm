@@ -1,6 +1,6 @@
 import { type ReactNode, type CSSProperties } from 'react';
 
-export type EditorTab = 'script' | 'alt' | 'cartridge';
+export type EditorTab = 'script' | 'alt' | 'cartridge' | 'score';
 
 export interface EditorPaneProps {
     active: EditorTab;
@@ -42,7 +42,7 @@ export function EditorPane({ active, onChange, children }: EditorPaneProps) {
     return (
         <div style={wrapStyle}>
             <div role="tablist" style={tabsStyle}>
-                {(['script', 'alt', 'cartridge'] as const).map((t) => (
+                {(['script', 'alt', 'score', 'cartridge'] as const).map((t) => (
                     <button
                         key={t}
                         role="tab"
@@ -50,7 +50,10 @@ export function EditorPane({ active, onChange, children }: EditorPaneProps) {
                         type="button"
                         onClick={() => onChange(t)}
                         style={tabStyle(active === t)}>
-                        {t === 'script' ? 'script' : t === 'alt' ? 'spritesheet' : 'cartridge'}
+                        {t === 'script' ? 'script'
+                         : t === 'alt' ? 'spritesheet'
+                         : t === 'score' ? 'score'
+                         : 'cartridge'}
                     </button>
                 ))}
             </div>
