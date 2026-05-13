@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 
 type RenderAbc = (target: HTMLElement, abc: string, options?: Record<string, unknown>) => unknown;
 
-const previewWrap: CSSProperties = {
+const outerWrap: CSSProperties = {
+    display: 'flex', flexDirection: 'column',
+    height: '100%', minHeight: 0,
+};
+const previewHost: CSSProperties = {
+    flex: 1, minHeight: 0,
     background: '#FFFFFF',
     overflow: 'auto',
     padding: '6px 8px',
@@ -61,9 +66,9 @@ export function ScorePreview({ abc }: ScorePreviewProps) {
     }, [renderAbc, abc]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={outerWrap}>
             {error && <div style={errorBand}>{error}</div>}
-            <div ref={hostRef} style={previewWrap} aria-label="rendered score" />
+            <div ref={hostRef} style={previewHost} aria-label="rendered score" />
         </div>
     );
 }

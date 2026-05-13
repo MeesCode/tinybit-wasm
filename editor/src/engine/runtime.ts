@@ -61,6 +61,12 @@ async function bootRuntime(sinks: WasiSinks): Promise<Runtime> {
 
     const { preview, previewAvailable } = __probePreview(exports);
 
+    // Initialize the engine once at boot so the Score tab's preview pump can
+    // call process_audio() without waiting for the user to play a cartridge.
+    // The game's Play button re-init's via tb.init() before each cartridge, so
+    // this isn't load-bearing for game state, just for "ready to make sound."
+    tb.init();
+
     return {
         wasm: wasm.instance, memory: exports.memory, tb,
         enc, encoderAvailable, dec, decoderAvailable, spritesheet,

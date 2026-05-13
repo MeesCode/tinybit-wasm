@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useSketchStore } from '../state/sketchStore';
 import { useConsoleStore } from '../state/consoleStore';
 import { findScores, type ScoreLink, type Diagnostic } from './scoreLinks';
@@ -26,9 +27,14 @@ const newScoreBtn: CSSProperties = {
     borderRadius: 999, border: '1px solid #ED225D',
     background: '#ED225D', color: '#FFFFFF', cursor: 'pointer',
 };
-const editorWrap: CSSProperties = { flex: 1, minHeight: 0, borderBottom: '1px solid #ECECF0' };
-const previewWrap: CSSProperties = { flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' };
-const transportBar: CSSProperties = { padding: '6px 8px', display: 'flex', gap: 6, borderTop: '1px solid #ECECF0', background: '#FAFAFA' };
+const editorPaneStyle: CSSProperties = { height: '100%', minHeight: 0, overflow: 'hidden' };
+const previewPaneStyle: CSSProperties = { height: '100%', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' };
+const splitHandle: CSSProperties = { background: '#ECECF0', width: '100%', height: 4, cursor: 'row-resize' };
+const transportBar: CSSProperties = {
+    padding: '6px 8px', display: 'flex', gap: 6,
+    borderTop: '1px solid #ECECF0', background: '#FAFAFA',
+    flex: '0 0 auto',
+};
 const transportBtn = (disabled: boolean): CSSProperties => ({
     padding: '4px 10px', fontSize: 12, fontWeight: 600,
     borderRadius: 4, border: '1px solid #ED225D',
@@ -192,18 +198,25 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
             )}
             {selectedLink && (
                 <>
-                    <div style={editorWrap}>
-                        <ScoreEditor value={buffer} onChange={handleChange} />
-                    </div>
-                    <div style={previewWrap}>
-                        <ScorePreview abc={buffer} />
-                        <div style={transportBar}>
-                            <button type="button" style={transportBtn(!previewAvailable)} disabled={!previewAvailable}
-                                onClick={handlePlay} aria-label="play">▶ Play</button>
-                            <button type="button" style={transportBtn(false)}
-                                onClick={handleStop} aria-label="stop">⏹ Stop</button>
-                            {!previewAvailable && <span style={{ fontSize: 11, color: '#6B6B76', alignSelf: 'center' }}>Preview requires rebuilding the WASM</span>}
-                        </div>
+                    <PanelGroup direction="vertical" style={{ flex: 1, minHeight: 0 }} autoSaveId="tinybit-score-split">
+                        <Panel defaultSize={50} minSize={15}>
+                            <div style={editorPaneStyle}>
+                                <ScoreEditor value={buffer} onChange={handleChange} />
+                            </div>
+                        </Panel>
+                        <PanelResizeHandle style={splitHandle} />
+                        <Panel defaultSize={50} minSize={15}>
+                            <div style={previewPaneStyle}>
+                                <ScorePreview abc={buffer} />
+                            </div>
+                        </Panel>
+                    </PanelGroup>
+                    <div style={transportBar}>
+                        <button type="button" style={transportBtn(!previewAvailable)} disabled={!previewAvailable}
+                            onClick={handlePlay} aria-label="play">▶ Play</button>
+                        <button type="button" style={transportBtn(false)}
+                            onClick={handleStop} aria-label="stop">⏹ Stop</button>
+                        {!previewAvailable && <span style={{ fontSize: 11, color: '#6B6B76', alignSelf: 'center' }}>Preview requires rebuilding the WASM</span>}
                     </div>
                 </>
             )}
