@@ -17,6 +17,8 @@ import { CartridgeTab } from './ui/CartridgeTab';
 import { AltEditorTab } from './ui/AltEditorTab';
 import { ScoreTab } from './score/ScoreTab';
 import { scoreHoverTooltip } from './score/scoreHoverTooltip';
+import { HelpButton } from './info/HelpButton';
+import { ScriptApiModal } from './info/ScriptApiModal';
 import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
@@ -53,6 +55,7 @@ export function App() {
     const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+    const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -365,11 +368,18 @@ export function App() {
                 left={
                     <EditorPane active={activeTab} onChange={setActiveTab}>
                         {activeTab === 'script' && (
-                            <CodeEditor
-                                value={sketch.script}
-                                onChange={sketch.setScript}
-                                extraExtensions={[scoreHoverExtension]}
-                            />
+                            <div style={{ position: 'relative', height: '100%' }}>
+                                <CodeEditor
+                                    value={sketch.script}
+                                    onChange={sketch.setScript}
+                                    extraExtensions={[scoreHoverExtension]}
+                                />
+                                <HelpButton
+                                    onClick={() => setScriptHelpOpen(true)}
+                                    aria-label="Script API help"
+                                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}
+                                />
+                            </div>
                         )}
                         {activeTab === 'alt' && <AltEditorTab />}
                         {activeTab === 'score' && runtime && (
@@ -401,6 +411,7 @@ export function App() {
                     onCancel={handleConfirmCancel}
                 />
             )}
+            <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
         </div>
     );
 }
