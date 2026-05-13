@@ -78,3 +78,12 @@ describe('ScoreTab — stale link', () => {
         expect(screen.getByText(/no longer linked/i)).toBeInTheDocument();
     });
 });
+
+describe('ScoreTab — help modal', () => {
+    it('opens the ABC modal when the ? button is clicked', () => {
+        render(<ScoreTab preview={preview as any} previewAvailable />);
+        fireEvent.click(screen.getByRole('button', { name: /abc notation help/i }));
+        // The modal renders "ABC Notation" as a title.
+        expect(screen.getByText('ABC Notation')).toBeInTheDocument();
+    });
+});

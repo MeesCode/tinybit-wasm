@@ -8,6 +8,8 @@ import { ScoreEditor } from './ScoreEditor';
 import { ScorePreview } from './ScorePreview';
 import { countAbc, noteStatus, voiceStatus, MUSIC_MAX_NOTES, MAX_VOICES, type CountStatus } from './abcCounts';
 import type { Preview } from '../engine/preview';
+import { HelpButton } from '../info/HelpButton';
+import { AbcInfoModal } from '../info/AbcInfoModal';
 
 const wrap: CSSProperties = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 };
 const chipBar: CSSProperties = {
@@ -104,6 +106,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
         for (const d of diagnostics) consoleAppend('warn', d.message);
     }, [diagnostics, consoleAppend]);
 
+    const [helpOpen, setHelpOpen] = useState(false);
     const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
     const selectedId = controlledId ?? internalSelectedId;
     const setSelected = useCallback((id: string | null) => {
@@ -214,6 +217,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                         </button>
                     ))}
                 <button type="button" style={newScoreBtn} onClick={handleNewScore}>+ New score</button>
+                <HelpButton onClick={() => setHelpOpen(true)} aria-label="ABC notation help" style={{ marginLeft: 4 }} />
             </div>
             {linkStale && (
                 <div style={banner}>
@@ -259,6 +263,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                     </div>
                 </>
             )}
+            <AbcInfoModal open={helpOpen} onClose={() => setHelpOpen(false)} />
         </div>
     );
 }
