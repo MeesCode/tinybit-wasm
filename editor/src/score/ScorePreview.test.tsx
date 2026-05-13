@@ -2,13 +2,13 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { ScorePreview } from './ScorePreview';
 
-const renderAbc = vi.fn((el: HTMLElement, _abc: string) => {
+const renderAbc = vi.fn((el: HTMLElement, _abc: string): void => {
     el.innerHTML = '<svg data-testid="rendered-svg"><g></g></svg>';
 });
 
 vi.mock('abcjs', () => ({
-    default:    { renderAbc: (...a: any[]) => renderAbc(...a) },
-    renderAbc:  (...a: any[]) => renderAbc(...a),
+    default:    { renderAbc: (el: HTMLElement, abc: string) => renderAbc(el, abc) },
+    renderAbc:  (el: HTMLElement, abc: string) => renderAbc(el, abc),
 }));
 
 beforeEach(() => { renderAbc.mockClear(); });
