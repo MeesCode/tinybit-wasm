@@ -92,7 +92,7 @@ Grouped sections:
 6. **Chords** — `[CEG]`. Rendered snippet.
 7. **Tuplets** — `(3CDE`. Rendered snippet.
 8. **Voices** — `V:MELODY` / `V:BASS`. Rendered snippet showing two voices.
-9. **Engine limits** — text-only section noting `MUSIC_MAX_NOTES = 400` per voice, `MAX_VOICES = 3`, `SFX_MAX_NOTES = 10`, sample rate 22 kHz, SINE waveform only. No example.
+9. **Engine limits** — text-only section noting `MUSIC_MAX_NOTES = 400` per voice, `MAX_VOICES = 3`, `SFX_MAX_NOTES = 10`, sample rate 22 kHz, and the voice-name → waveform mapping (`V:SINE` / `V:SAW` / `V:SQUARE` / `V:NOISE` each pick that synth; any other name defaults to SINE). No example.
 
 Each example renders via a slimmed-down `<MiniScore>` component (see Architecture). Fixed staff width (~320 px), no resize observer, no scroll host — these are tiny 1–4 bar fixtures.
 

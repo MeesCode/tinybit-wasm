@@ -65,7 +65,8 @@ export const ABC_SECTIONS: AbcSection[] = [
         title: 'Voices',
         body: [
             { text: 'A V: header introduces or switches to a voice. The engine supports up to 3 voices, played simultaneously.' },
-            { text: 'Two-voice example (melody + bass):', abc: 'L:1/8\nK:C\nV:MELODY\nCDEF GABc |\nV:BASS\nC,4 G,4 |' },
+            { text: 'Voice names are also how you pick a waveform: V:SINE, V:SAW, V:SQUARE, and V:NOISE map to the corresponding synthesizer. Any other name (e.g. V:MELODY) defaults to SINE.' },
+            { text: 'Two-voice example: a SQUARE-wave melody over a SAW-wave bass:', abc: 'L:1/8\nK:C\nV:SQUARE\nCDEF GABc |\nV:SAW\nC,4 G,4 |' },
         ],
     },
     {
@@ -73,7 +74,7 @@ export const ABC_SECTIONS: AbcSection[] = [
         body: [
             { text: 'Notes per voice: 400. Voices per score: 3. SFX channel limit: 10 notes.' },
             { text: 'Sample rate: 22 kHz (browser playback retunes if the host AudioContext disagrees).' },
-            { text: 'Waveform: SINE only. The other waveform constants exist in the API but the engine currently hard-codes SINE.' },
+            { text: 'Waveforms: SINE, SAW, SQUARE, NOISE — chosen per voice by naming the voice with the corresponding header (V:SINE, V:SAW, …). Voices with any other name default to SINE.' },
         ],
     },
 ];

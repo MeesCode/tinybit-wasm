@@ -114,10 +114,10 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
         items: [
             { name: 'TB_SCREEN_WIDTH',  signature: 'TB_SCREEN_WIDTH = 128',     description: 'Display width in pixels.' },
             { name: 'TB_SCREEN_HEIGHT', signature: 'TB_SCREEN_HEIGHT = 128',    description: 'Display height in pixels.' },
-            { name: 'SINE',             signature: 'SINE',                      description: 'Waveform constant. Currently the only waveform used by music() and sfx().' },
-            { name: 'SAW',              signature: 'SAW',                       description: 'Waveform constant (reserved; engine currently always uses SINE).' },
-            { name: 'SQUARE',           signature: 'SQUARE',                    description: 'Waveform constant (reserved).' },
-            { name: 'NOISE',            signature: 'NOISE',                     description: 'Waveform constant (reserved).' },
+            { name: 'SINE',             signature: 'SINE',                      description: 'Waveform constant. Lua globals exist for API parity, but the engine picks the actual per-voice waveform from the ABC V: header name (V:SINE/V:SAW/V:SQUARE/V:NOISE).' },
+            { name: 'SAW',              signature: 'SAW',                       description: 'Waveform constant. See SINE for how waveforms are selected at playback time.' },
+            { name: 'SQUARE',           signature: 'SQUARE',                    description: 'Waveform constant. See SINE for how waveforms are selected at playback time.' },
+            { name: 'NOISE',            signature: 'NOISE',                     description: 'Waveform constant. See SINE for how waveforms are selected at playback time.' },
         ],
     },
 ];
