@@ -139,7 +139,7 @@ src/bindings.rs                         ← modified (extern decl for audio_load
 
 The C engine is **not modified**. We add Rust-side wrappers in `src/lib.rs` that delegate to existing `audio_load_abc` (already declared in `src/tinybit/audio.h`; not yet declared on the Rust side). Add `extern "C"` decls in `src/bindings.rs` for `audio_load_abc` and the `WAVEFORM` / channel-index constants.
 
-Stop semantics: the engine has no dedicated "clear channel" entry point — `tb_preview_stop` calls `audio_load_abc(channel, "", SINE, false)` to load an empty NotePool, which silences the channel on the next frame. Verified during implementation; see *Open questions* if the empty-string path turns out not to silence the channel.
+Stop semantics: the C engine exposes `audio_stop_channel(int channel_num)` and `audio_stop_all()` (in `audio.h`); `tb_preview_stop` calls `audio_stop_all()`.
 
 **Staging buffer pattern**, mirroring `tb_feed_buffer_ptr` / `tb_feed_cartridge`:
 
@@ -171,9 +171,7 @@ struct PreviewState {
 #[no_mangle] pub extern "C" fn tb_preview_sfx_play(len: u32) -> i32 { /* same, repeat=false */ }
 
 #[no_mangle] pub extern "C" fn tb_preview_stop() {
-    // Load an empty (zero-length, NUL-only) ABC string into both channels to silence them.
-    audio_load_abc(CHANNEL_MUSIC, EMPTY_C_STR.as_ptr(), SINE, false);
-    audio_load_abc(CHANNEL_SFX,   EMPTY_C_STR.as_ptr(), SINE, false);
+    audio_stop_all();
 }
 ```
 
@@ -282,10 +280,7 @@ export function insertNewScoreSnippet(
 
 ## Open questions
 
-**Q1. Does `audio_load_abc(channel, "", SINE, false)` reliably silence the channel?**
-The engine has no documented clear-channel entry point. Empirically the parser produces an empty NotePool from empty input and the audio worklet should stop emitting samples on that channel within a frame or two. To verify during implementation: write a one-line test that loads a tone, then loads empty, and asserts the audio buffer goes to zero within N frames. If it doesn't, fall back to either (a) loading a `z1` rest (an explicit silent note) or (b) tracking the issue upstream in TinyBit-lib and exposing a real `audio_clear(channel)` in the C engine — the latter is a separate spec, not in scope here.
-
-**Q2. abcjs bundle weight.**
+**Q1. abcjs bundle weight.**
 abcjs is ~250 KB gzipped. We lazy-import it in `ScorePreview.tsx` so the script-only path is not impacted, but it's worth measuring after wiring. If the lazy chunk size is unacceptable, consider `abcjs/src/api/render-abc.js` (the standalone renderer entry point) without the synth/midi modules.
 
 ## Out-of-scope follow-ups (not in this spec)
