@@ -60,11 +60,15 @@ export interface ScoreTabProps {
     previewAvailable: boolean;
     selectedLinkId?: string;
     onSelectLink?(id: string | null): void;
+    // Called immediately before the preview pump starts. The host should tear
+    // down any running game cartridge so the engine's audio channels aren't
+    // driven from two pumps simultaneously.
+    onBeforePreview?(): void;
 }
 
 const DEBOUNCE_MS = 300;
 
-export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlledId, onSelectLink }: ScoreTabProps) {
+export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlledId, onSelectLink, onBeforePreview }: ScoreTabProps) {
     const script = useSketchStore((s) => s.script);
     const setScript = useSketchStore((s) => s.setScript);
     const consoleAppend = useConsoleStore((s) => s.append);
@@ -160,12 +164,13 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
 
     const handlePlay = useCallback(async () => {
         if (!selectedLink) return;
+        onBeforePreview?.();
         try { await preview.music(buffer); }
         catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             consoleAppend('error', `Score preview failed: ${msg}`);
         }
-    }, [preview, selectedLink, buffer, consoleAppend]);
+    }, [preview, selectedLink, buffer, consoleAppend, onBeforePreview]);
 
     const handleStop = useCallback(() => { preview.stop(); }, [preview]);
 

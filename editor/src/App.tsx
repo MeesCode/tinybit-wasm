@@ -283,6 +283,9 @@ export function App() {
         const rt = runtime; const fl = frameLoopRef.current; const canvas = canvasRef.current?.getCanvas();
         if (!rt || !fl || !canvas) return;
         fl.stop();
+        // Tear down any in-flight Score-tab preview so it can't race the game
+        // for the engine's audio channels.
+        rt.preview.stop();
         const bytes = await buildCartridge();
         if (!bytes) return;
         try {
@@ -375,6 +378,13 @@ export function App() {
                                 previewAvailable={runtime.previewAvailable}
                                 selectedLinkId={selectedLinkId ?? undefined}
                                 onSelectLink={setSelectedLinkId}
+                                onBeforePreview={() => {
+                                    // Mutex with the game: tear down any running cartridge
+                                    // so the engine's audio channels aren't being driven
+                                    // from two pumps at once.
+                                    frameLoopRef.current?.stop();
+                                    runtime.tb.stop();
+                                }}
                             />
                         )}
                         {activeTab === 'cartridge' && <CartridgeTab />}
