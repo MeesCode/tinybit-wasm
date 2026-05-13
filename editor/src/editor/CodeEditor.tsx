@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EditorState } from '@codemirror/state';
+import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, lineNumbers, drawSelection, keymap, highlightSpecialChars } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput, foldGutter, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
@@ -29,9 +29,10 @@ const editorTheme = EditorView.theme({
 export interface CodeEditorProps {
     value: string;
     onChange(v: string): void;
+    extraExtensions?: Extension[];
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
     const onChangeRef = useRef(onChange);
@@ -59,6 +60,7 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
                     if (u.docChanged) onChangeRef.current(u.state.doc.toString());
                 }),
                 EditorView.contentAttributes.of({ 'aria-label': 'TinyBit Lua script editor' }),
+                ...(extraExtensions ?? []),
             ],
         });
         const view = new EditorView({ state, parent: hostRef.current });
