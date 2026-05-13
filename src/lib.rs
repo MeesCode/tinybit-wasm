@@ -791,3 +791,11 @@ pub extern "C" fn tb_preview_sfx_play(len: u32) -> i32 {
 pub extern "C" fn tb_preview_stop() {
     unsafe { bindings::audio_stop_all(); }
 }
+
+// Drive one frame of audio synthesis. Used by the Score tab's preview pump
+// when the main game frame loop isn't running (otherwise process_audio is
+// invoked from inside tinybit_loop). Safe to call any number of times.
+#[no_mangle]
+pub extern "C" fn tb_preview_tick() {
+    unsafe { bindings::process_audio(); }
+}

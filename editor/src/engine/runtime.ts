@@ -75,8 +75,8 @@ export function __probePreview(exports: Partial<PreviewExports>): { preview: Pre
     const preview: Preview = previewAvailable
         ? makePreview(exports as PreviewExports)
         : {
-            music() { throw new Error('Preview exports not present in WASM build — rebuild after the score-editor branch lands.'); },
-            sfx()   { throw new Error('Preview exports not present in WASM build — rebuild after the score-editor branch lands.'); },
+            async music() { throw new Error('Preview exports not present in WASM build — rebuild after the score-editor branch lands.'); },
+            async sfx()   { throw new Error('Preview exports not present in WASM build — rebuild after the score-editor branch lands.'); },
             stop()  {},
         };
     return { preview, previewAvailable };

@@ -152,9 +152,9 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
         setSelected(newLink.id);
     }, [flushWriteback, setScript, setSelected]);
 
-    const handlePlay = useCallback(() => {
+    const handlePlay = useCallback(async () => {
         if (!selectedLink) return;
-        try { preview.music(buffer); }
+        try { await preview.music(buffer); }
         catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             consoleAppend('error', `Score preview failed: ${msg}`);

@@ -108,6 +108,7 @@ extern "C" {
         repeat: bool,
     ) -> c_int;
     pub fn audio_stop_all();
+    pub fn process_audio();
 }
 
 // --- audio.h constants ---

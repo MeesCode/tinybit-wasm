@@ -7,7 +7,7 @@ describe('runtime preview probe', () => {
         const { __probePreview } = await import('./runtime');
         const r = __probePreview({} as any);
         expect(r.previewAvailable).toBe(false);
-        expect(() => r.preview.music('x')).toThrow(/not present/i);
+        await expect(r.preview.music('x')).rejects.toThrow(/not present/i);
     });
 
     it('exposes previewAvailable=true when exports are present', async () => {
