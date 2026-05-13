@@ -7,8 +7,9 @@ export function scoreHoverTooltip(onPick: ScorePickCallback) {
     return hoverTooltip((view, pos): Tooltip | null => {
         const script = view.state.doc.toString();
         const { links } = findScores(script);
+        // Half-open: hovering on the closing bracket itself should not pop the tooltip.
         const hit = links.find((l) =>
-            pos >= l.contentRange.from && pos <= l.contentRange.to
+            pos >= l.contentRange.from && pos < l.contentRange.to
         );
         if (!hit) return null;
         const label = hit.name ? `Edit "${hit.name}" in Score tab` : `Edit (anon @ line ${hit.annotationLine}) in Score tab`;

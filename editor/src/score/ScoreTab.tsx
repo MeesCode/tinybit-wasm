@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSketchStore } from '../state/sketchStore';
-import { findScores, type ScoreLink } from './scoreLinks';
+import { useConsoleStore } from '../state/consoleStore';
+import { findScores, type ScoreLink, type Diagnostic } from './scoreLinks';
 import { insertNewScoreSnippet, replaceScoreContent } from './scoreSync';
 import { ScoreEditor } from './ScoreEditor';
 import { ScorePreview } from './ScorePreview';
@@ -43,6 +44,11 @@ const emptyState: CSSProperties = {
     flex: 1, display: 'grid', placeItems: 'center', color: '#6B6B76', fontSize: 13, padding: 20, textAlign: 'center',
 };
 
+function diagSignature(d: Diagnostic): string {
+    if (d.kind === 'duplicate-name') return `dup:${d.name}@${d.line}`;
+    return `unbound@${d.line}`;
+}
+
 export interface ScoreTabProps {
     preview: Preview;
     previewAvailable: boolean;
@@ -55,7 +61,18 @@ const DEBOUNCE_MS = 300;
 export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlledId, onSelectLink }: ScoreTabProps) {
     const script = useSketchStore((s) => s.script);
     const setScript = useSketchStore((s) => s.setScript);
-    const { links } = useMemo(() => findScores(script), [script]);
+    const consoleAppend = useConsoleStore((s) => s.append);
+    const { links, diagnostics } = useMemo(() => findScores(script), [script]);
+
+    // Surface parse-time diagnostics into the editor console exactly once per
+    // distinct diagnostic set (otherwise every keystroke would re-log).
+    const lastDiagSigRef = useRef<string>('');
+    useEffect(() => {
+        const sig = diagnostics.map(diagSignature).join('|');
+        if (sig === lastDiagSigRef.current) return;
+        lastDiagSigRef.current = sig;
+        for (const d of diagnostics) consoleAppend('warn', d.message);
+    }, [diagnostics, consoleAppend]);
 
     const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
     const selectedId = controlledId ?? internalSelectedId;
@@ -101,30 +118,48 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
         writebackTimer.current = window.setTimeout(() => {
             const result = replaceScoreContent(useSketchStore.getState().script, selectedLink, next);
             if ('error' in result) {
-                // eslint-disable-next-line no-console
-                console.warn(`[score] writeback dropped (${result.error})`);
+                consoleAppend('warn', `Score writeback dropped: ${result.error}`);
                 return;
             }
             setScript(result.script);
         }, DEBOUNCE_MS);
-    }, [selectedLink, flushTimer, setScript]);
+    }, [selectedLink, flushTimer, setScript, consoleAppend]);
+
+    // Flushes any pending debounced writeback to the script *synchronously*.
+    // Called before mutations that would otherwise drop the in-flight edit
+    // (e.g. inserting a new score while the user is mid-keystroke).
+    const flushWriteback = useCallback(() => {
+        if (writebackTimer.current == null || !selectedLink) {
+            flushTimer();
+            return;
+        }
+        flushTimer();
+        const r = replaceScoreContent(useSketchStore.getState().script, selectedLink, buffer);
+        if ('error' in r) {
+            consoleAppend('warn', `Score writeback dropped: ${r.error}`);
+            return;
+        }
+        setScript(r.script);
+    }, [selectedLink, buffer, flushTimer, setScript, consoleAppend]);
 
     const handleNewScore = useCallback(() => {
-        flushTimer();
+        flushWriteback();
+        // TODO: thread the script-editor cursor through here so the snippet
+        // can land at the cursor instead of always appending at EOF.
         const current = useSketchStore.getState().script;
         const { script: newScript, newLink } = insertNewScoreSnippet(current, current.length);
         setScript(newScript);
         setSelected(newLink.id);
-    }, [flushTimer, setScript, setSelected]);
+    }, [flushWriteback, setScript, setSelected]);
 
     const handlePlay = useCallback(() => {
         if (!selectedLink) return;
         try { preview.music(buffer); }
         catch (err) {
-            // eslint-disable-next-line no-console
-            console.error('[score] preview failed:', err);
+            const msg = err instanceof Error ? err.message : String(err);
+            consoleAppend('error', `Score preview failed: ${msg}`);
         }
-    }, [preview, selectedLink, buffer]);
+    }, [preview, selectedLink, buffer, consoleAppend]);
 
     const handleStop = useCallback(() => { preview.stop(); }, [preview]);
 
