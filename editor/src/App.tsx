@@ -15,6 +15,8 @@ import { EditorPane, type EditorTab } from './ui/EditorPane';
 import { CodeEditor } from './editor/CodeEditor';
 import { CartridgeTab } from './ui/CartridgeTab';
 import { AltEditorTab } from './ui/AltEditorTab';
+import { ScoreTab } from './score/ScoreTab';
+import { scoreHoverTooltip } from './score/scoreHoverTooltip';
 import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
@@ -50,6 +52,7 @@ export function App() {
     const [bootError, setBootError] = useState<string | null>(null);
     const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -140,6 +143,14 @@ export function App() {
         window.addEventListener('keyup', up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, [runtime]);
+
+    const scoreHoverExtension = useMemo(
+        () => scoreHoverTooltip((id) => {
+            setSelectedLinkId(id);
+            setActiveTab('score');
+        }),
+        [],
+    );
 
     // Upload pipeline ────────────────────────────────────────────────────────
 
@@ -350,8 +361,22 @@ export function App() {
             <AppSplit
                 left={
                     <EditorPane active={activeTab} onChange={setActiveTab}>
-                        {activeTab === 'script' && <CodeEditor value={sketch.script} onChange={sketch.setScript} />}
+                        {activeTab === 'script' && (
+                            <CodeEditor
+                                value={sketch.script}
+                                onChange={sketch.setScript}
+                                extraExtensions={[scoreHoverExtension]}
+                            />
+                        )}
                         {activeTab === 'alt' && <AltEditorTab />}
+                        {activeTab === 'score' && runtime && (
+                            <ScoreTab
+                                preview={runtime.preview}
+                                previewAvailable={runtime.previewAvailable}
+                                selectedLinkId={selectedLinkId ?? undefined}
+                                onSelectLink={setSelectedLinkId}
+                            />
+                        )}
                         {activeTab === 'cartridge' && <CartridgeTab />}
                     </EditorPane>
                 }
