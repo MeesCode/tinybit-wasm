@@ -3,6 +3,7 @@ import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
 import { loadSketch, saveSketchDebounced } from './state/persist';
+import { loadDemo } from './state/demo';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
@@ -73,6 +74,8 @@ export function App() {
                 });
             }
             sketch.setCover(stored.cover);
+        } else {
+            void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
