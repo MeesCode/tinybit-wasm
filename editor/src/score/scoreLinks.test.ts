@@ -17,7 +17,7 @@ describe('findScores — long-bracket form', () => {
         expect(diagnostics).toEqual([]);
         expect(links).toHaveLength(1);
         const [link] = links;
-        expect(link.id).toBe('anon:2');           // annotationLine is 1-based; --@score is line 2
+        expect(link.id).toBe('music:anon:2');      // annotationLine is 1-based; --@score is line 2
         expect(link.name).toBeUndefined();
         expect(link.form).toEqual({ kind: 'long', level: 0 });
         // content trims neither leading nor trailing newline that abuts the bracket:
@@ -33,7 +33,7 @@ describe('findScores — long-bracket form', () => {
         const { links } = findScores(script);
         expect(links).toHaveLength(1);
         expect(links[0].name).toBe('bass_line');
-        expect(links[0].id).toBe('name:bass_line');
+        expect(links[0].id).toBe('music:name:bass_line');
     });
 
     it('handles --@score:  name (with extra whitespace)', () => {
@@ -128,5 +128,46 @@ describe('findScores — robustness', () => {
         expect(links.map((l) => l.name)).toEqual(['first', 'second']);
         expect(links[0].annotationLine).toBe(1);
         expect(links[1].annotationLine).toBe(5);
+    });
+
+    it('detects --@sfx followed by a literal and tags kind="sfx"', () => {
+        const script = `--@sfx: jump\nlocal j = "c/4d/4e/4"\n`;
+        const { links, diagnostics } = findScores(script);
+        expect(diagnostics).toEqual([]);
+        expect(links).toHaveLength(1);
+        expect(links[0].kind).toBe('sfx');
+        expect(links[0].name).toBe('jump');
+        expect(links[0].id).toBe('sfx:name:jump');
+    });
+
+    it('tags --@score links with kind="music"', () => {
+        const script = `--@score: tune\nlocal t = [[K:C\nC\n]]\n`;
+        const { links } = findScores(script);
+        expect(links[0].kind).toBe('music');
+        expect(links[0].id).toBe('music:name:tune');
+    });
+
+    it('allows same name across kinds without a duplicate diagnostic', () => {
+        const script =
+            `--@score: bass\nlocal a = [[K:C\nC\n]]\n` +
+            `--@sfx: bass\nlocal b = "c"\n`;
+        const { links, diagnostics } = findScores(script);
+        expect(diagnostics).toEqual([]);
+        expect(links.map((l) => l.id).sort()).toEqual(['music:name:bass', 'sfx:name:bass']);
+    });
+
+    it('still flags duplicates within the same kind', () => {
+        const script =
+            `--@sfx: hit\nlocal a = "c"\n` +
+            `--@sfx: hit\nlocal b = "d"\n`;
+        const { diagnostics } = findScores(script);
+        expect(diagnostics).toHaveLength(1);
+        expect(diagnostics[0]).toMatchObject({ kind: 'duplicate-name', name: 'hit' });
+    });
+
+    it('uses kind-prefixed anon ids when no name is given', () => {
+        const script = `--@sfx\nlocal s = "c"\n`;
+        const { links } = findScores(script);
+        expect(links[0].id).toBe('sfx:anon:1');
     });
 });
