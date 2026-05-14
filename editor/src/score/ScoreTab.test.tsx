@@ -13,6 +13,7 @@ const preview = { music: vi.fn(), sfx: vi.fn(), stop: vi.fn() };
 beforeEach(() => {
     useSketchStore.setState({ script: DEFAULT_SCRIPT });
     preview.music.mockClear();
+    preview.sfx.mockClear();
     preview.stop.mockClear();
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -85,5 +86,38 @@ describe('ScoreTab — help modal', () => {
         fireEvent.click(screen.getByRole('button', { name: /abc notation help/i }));
         // The modal renders "ABC Notation" as a title.
         expect(screen.getByText('ABC Notation')).toBeInTheDocument();
+    });
+});
+
+describe('ScoreTab — sfx scores', () => {
+    const SFX_SCRIPT = '--@sfx: jump\nlocal j = "c/4d/4"\nsfx(j)\n';
+
+    it('renders a chip for the sfx score', () => {
+        useSketchStore.setState({ script: SFX_SCRIPT });
+        render(<ScoreTab preview={preview as any} previewAvailable />);
+        expect(screen.getByRole('button', { name: /jump/i })).toBeInTheDocument();
+    });
+
+    it('routes Play through preview.sfx when the selected score is sfx-kind', () => {
+        useSketchStore.setState({ script: SFX_SCRIPT });
+        render(<ScoreTab preview={preview as any} previewAvailable />);
+        fireEvent.click(screen.getByRole('button', { name: /play/i }));
+        expect(preview.sfx).toHaveBeenCalledTimes(1);
+        expect(preview.music).not.toHaveBeenCalled();
+    });
+
+    it('shows the SFX 10-note cap in the badge when an sfx score is selected', () => {
+        useSketchStore.setState({ script: SFX_SCRIPT });
+        render(<ScoreTab preview={preview as any} previewAvailable />);
+        // Badge text reflects the SFX cap, not the music 400 cap.
+        expect(screen.getByText(/\/10 notes/i)).toBeInTheDocument();
+    });
+
+    it('inserts a starter --@sfx snippet when "+ New SFX" is clicked', () => {
+        useSketchStore.setState({ script: 'function _draw() end\n' });
+        render(<ScoreTab preview={preview as any} previewAvailable />);
+        fireEvent.click(screen.getByRole('button', { name: /\+ new sfx/i }));
+        const updated = useSketchStore.getState().script;
+        expect(updated).toContain('--@sfx: sfx_1');
     });
 });
