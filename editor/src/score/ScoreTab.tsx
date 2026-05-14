@@ -180,7 +180,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
         // TODO: thread the script-editor cursor through here so the snippet
         // can land at the cursor instead of always appending at EOF.
         const current = useSketchStore.getState().script;
-        const { script: newScript, newLink } = insertNewScoreSnippet(current, current.length);
+        const { script: newScript, newLink } = insertNewScoreSnippet(current, current.length, 'music');
         setScript(newScript);
         setSelected(newLink.id);
     }, [flushWriteback, setScript, setSelected]);
