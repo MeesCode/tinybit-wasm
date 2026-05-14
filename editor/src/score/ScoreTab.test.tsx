@@ -19,25 +19,25 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('ScoreTab — empty state', () => {
-    it('shows empty state and a + New score button when no annotations exist', () => {
+    it('shows empty state and a + New music button when no annotations exist', () => {
         useSketchStore.setState({ script: 'function _draw() end\n' });
         render(<ScoreTab preview={preview as any} previewAvailable />);
         expect(screen.getByText(/no scores yet/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /new score/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new music/i })).toBeInTheDocument();
     });
 
-    it('inserts a starter snippet into the script when + New score is clicked', () => {
+    it('inserts a starter snippet into the script when + New music is clicked', () => {
         useSketchStore.setState({ script: 'function _draw() end\n' });
         render(<ScoreTab preview={preview as any} previewAvailable />);
-        fireEvent.click(screen.getByRole('button', { name: /new score/i }));
+        fireEvent.click(screen.getByRole('button', { name: /new music/i }));
         const updated = useSketchStore.getState().script;
-        expect(updated).toContain('--@score: score_1');
+        expect(updated).toContain('--@music: music_1');
         expect(updated).toContain('[[\nL:1/4\nK:C\nC D E F |\n]]');
     });
 });
 
 describe('ScoreTab — with one score', () => {
-    const SCRIPT = '--@score: melody\nlocal m = [[\nK:C\nC D E F\n]]\nmusic(m)\n';
+    const SCRIPT = '--@music: melody\nlocal m = [[\nK:C\nC D E F\n]]\nmusic(m)\n';
 
     it('renders a chip for the score and loads its content into the editor', () => {
         useSketchStore.setState({ script: SCRIPT });
@@ -71,7 +71,7 @@ describe('ScoreTab — with one score', () => {
 
 describe('ScoreTab — stale link', () => {
     it('shows a banner when the held link is removed from the script', () => {
-        const SCRIPT = '--@score\nlocal m = [[\nK:C\nC\n]]\n';
+        const SCRIPT = '--@music\nlocal m = [[\nK:C\nC\n]]\n';
         useSketchStore.setState({ script: SCRIPT });
         render(<ScoreTab preview={preview as any} previewAvailable />);
         // Externally remove the annotation

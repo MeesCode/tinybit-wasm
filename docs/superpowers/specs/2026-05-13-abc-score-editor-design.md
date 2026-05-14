@@ -17,7 +17,7 @@ Today users hand-write ABC as Lua string literals in their script. There is no s
 
 ## Goal
 
-A new **Score** tab in the editor that gives users an ABC text editor with a live sheet-music preview and audio playback through the actual engine, bidirectionally linked to string literals in their Lua script via a `--@score` annotation. New scores are created by clicking a button that inserts a starter snippet at the script cursor.
+A new **Score** tab in the editor that gives users an ABC text editor with a live sheet-music preview and audio playback through the actual engine, bidirectionally linked to string literals in their Lua script via a `--@music` annotation. New scores are created by clicking a button that inserts a starter snippet at the script cursor.
 
 ## Non-goals
 
@@ -35,7 +35,7 @@ A fourth tab (`Script` / `Sprite` / `Cartridge` / **`Score`**) in the left `Edit
 
 ```
 ┌─ Score tab ──────────────────────────────────┐
-│ [chip: score_1] [chip: bass]    [+ New score]│
+│ [chip: music_1] [chip: bass]    [+ New music]│
 ├──────────────────────────────────────────────┤
 │   CodeMirror ABC editor                      │
 │     L:1/4                                    │
@@ -49,23 +49,23 @@ A fourth tab (`Script` / `Sprite` / `Cartridge` / **`Score`**) in the left `Edit
 ```
 
 - Top chip bar lists every score discovered in the current script. Selecting a chip loads that score into the editor.
-- `+ New score` inserts a starter snippet at the script cursor (see *Insertion snippet* below), switches to the Score tab, and selects the newly-inserted score.
+- `+ New music` inserts a starter snippet at the script cursor (see *Insertion snippet* below), switches to the Score tab, and selects the newly-inserted score.
 - ABC editor is CodeMirror 6 with a `simpleMode` definition for ABC syntax.
 - Preview is rendered by [abcjs](https://github.com/paulrosen/abcjs) (MIT, JS ABC renderer) into an SVG node beneath the editor. abcjs's own audio path is **not** used.
 - Play button feeds the current ABC string through the engine via new wasm exports. Stop button clears the channel.
 
 ### Hover popup in the Script tab
 
-When the cursor hovers any character inside a string literal that is bound to a `--@score` annotation, CodeMirror shows a tooltip:
+When the cursor hovers any character inside a string literal that is bound to a `--@music` annotation, CodeMirror shows a tooltip:
 
-> ✏️ Edit `score_1` in Score tab
+> ✏️ Edit `music_1` in Score tab
 
 Clicking the tooltip switches `activeTab` to `'score'` and selects that score in the Score tab.
 
 ### Annotation syntax
 
 ```lua
---@score
+--@music
 local tune = [[
 L:1/4
 K:C
@@ -73,27 +73,27 @@ C D E F | G A B c |
 ]]
 music(tune)
 
---@score: jump_sfx
+--@music: jump_sfx
 local jump = "c/4d/4e/4g/4"
 sfx(jump)
 ```
 
 ### Music vs SFX scores
 
-A score may be annotated with either `--@score` (music channel; up to 400 notes per voice, looped via `music(...)`) or `--@sfx` (SFX channel; up to 10 notes per voice, one-shot via `sfx(...)`). Both share 3 voices. The annotation determines the chip color in the Score tab, the note-count cap shown by the editor's badge, and which `tb_preview_*_play` export the Play button routes through. Names are unique per kind: `--@score: bass` and `--@sfx: bass` may coexist.
+A score may be annotated with either `--@music` (music channel; up to 400 notes per voice, looped via `music(...)`) or `--@sfx` (SFX channel; up to 10 notes per voice, one-shot via `sfx(...)`). Both share 3 voices. The annotation determines the chip color in the Score tab, the note-count cap shown by the editor's badge, and which `tb_preview_*_play` export the Play button routes through. Names are unique per kind: `--@music: bass` and `--@sfx: bass` may coexist.
 
 Rules:
 
-- `--@score` must occupy a line by itself (whitespace allowed). Optional name: `--@score: name` (one or more spaces after `:`).
+- `--@music` must occupy a line by itself (whitespace allowed). Optional name: `--@music: name` (one or more spaces after `:`).
 - Within the next 3 non-blank lines after the annotation, the first non-whitespace token must be the opener of a Lua string literal: `[[...]]`, `[==[...]==]` (and deeper levels `[===[...]===]`, …), `"..."`, or `'...'`. Intervening tokens (e.g. `local foo =`) are allowed on the same line as the opener.
 - An annotation with no following literal within that window emits a console warning and produces no link.
 - Two annotations sharing a name disambiguate in the UI as `name`, `name (2)`, etc. (console warning on first detection).
 
-### Insertion snippet (`+ New score`)
+### Insertion snippet (`+ New music`)
 
 ```
---@score
-local score_1 = [[
+--@music
+local music_1 = [[
 L:1/4
 K:C
 C D E F |
@@ -203,7 +203,7 @@ export class PreviewError extends Error { constructor(public code: number, messa
 ```ts
 export interface ScoreLink {
     id: string;             // stable across `findScores` calls when the link is conceptually the same
-    name?: string;          // present if annotation was `--@score: name`
+    name?: string;          // present if annotation was `--@music: name`
     annotationLine: number; // 1-based
     contentRange: { from: number; to: number }; // offsets into the script, EXCLUDING the bracket/quote characters
     openerRange:  { from: number; to: number }; // offsets of the opening `[[`, `[==[`, `"`, or `'`
@@ -215,7 +215,7 @@ export interface ScoreLink {
 export function findScores(script: string): { links: ScoreLink[]; diagnostics: Diagnostic[] };
 ```
 
-**Implementation sketch**: a single forward scan over the script. State machine recognizes Lua line comments, block comments, string literals (for skipping — we must not treat `--@score` inside a string as an annotation), and `--@score[: name]` markers. When a marker is found, look ahead up to 3 lines (skipping blanks and whitespace) for a string-literal opener and consume the matching closer. Memoized at the call site (`useMemo(() => findScores(script), [script])`).
+**Implementation sketch**: a single forward scan over the script. State machine recognizes Lua line comments, block comments, string literals (for skipping — we must not treat `--@music` inside a string as an annotation), and `--@music[: name]` markers. When a marker is found, look ahead up to 3 lines (skipping blanks and whitespace) for a string-literal opener and consume the matching closer. Memoized at the call site (`useMemo(() => findScores(script), [script])`).
 
 **ID stability**: `id = "name:" + name` if named; else `id = "anon:" + annotationLine`. The Score tab additionally remembers which link it adopted *when the user last selected a chip* (`adoptedLinkId` state). If the held link disappears from a fresh `findScores` result while the ABC editor is non-empty, the tab shows the "no longer linked" banner instead of silently swapping to a different link.
 
@@ -247,8 +247,8 @@ export function insertNewScoreSnippet(
 
 | Scenario | Behavior |
 |---|---|
-| `--@score` with no literal within 3 lines | No link emitted; console warning with line number. |
-| `--@score: ` (empty name) | Treated as unnamed; no warning. |
+| `--@music` with no literal within 3 lines | No link emitted; console warning with line number. |
+| `--@music: ` (empty name) | Treated as unnamed; no warning. |
 | Duplicate names | All links kept; disambiguated in UI; first detection warns. |
 | Unclosed `[[ ... ` literal | No link emitted; Lua VM will error on play. We don't gate. |
 | abcjs throws on render | Red inline error band beneath the editor. Play still works. |
@@ -262,16 +262,16 @@ export function insertNewScoreSnippet(
 
 ### Unit (Vitest, jsdom)
 
-- `scoreLinks.test.ts` — annotation detection (named, unnamed, with `--@score: name` spacing variants), bracket-level detection, quoted-literal detection with escape handling, no-literal-within-3-lines, duplicate names, annotations inside strings ignored.
+- `scoreLinks.test.ts` — annotation detection (named, unnamed, with `--@music: name` spacing variants), bracket-level detection, quoted-literal detection with escape handling, no-literal-within-3-lines, duplicate names, annotations inside strings ignored.
 - `scoreSync.test.ts` — preserves form, escalates brackets when content contains `]]`, returns `link-stale` when annotation gone, `insertNewScoreSnippet` inserts at cursor and returns a valid `ScoreLink`.
 - `abcMode.test.ts` — at least one happy-path tokenization test (simpleMode regexes drift easily).
-- `ScoreTab.test.tsx` — empty state + `+ New score`; chip switching; debounced writeback (advance timers); link-stale banner.
+- `ScoreTab.test.tsx` — empty state + `+ New music`; chip switching; debounced writeback (advance timers); link-stale banner.
 - `ScorePreview.test.tsx` — renders SVG for valid ABC; renders error band when abcjs throws (mocked).
 - `scoreHoverTooltip.test.ts` — hover within linked range shows tooltip, hover outside does not, click invokes callback.
 
 ### End-to-end (Playwright)
 
-- `editor/tests/e2e/score.spec.ts` — boot, switch to Score tab, `+ New score` inserts snippet, type in ABC editor → Script tab reflects change, click Play → engine state `running`, click Stop → engine state `idle`. Does not assert audio output.
+- `editor/tests/e2e/score.spec.ts` — boot, switch to Score tab, `+ New music` inserts snippet, type in ABC editor → Script tab reflects change, click Play → engine state `running`, click Stop → engine state `idle`. Does not assert audio output.
 
 ### Engine smoke
 

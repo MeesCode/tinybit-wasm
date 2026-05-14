@@ -18,9 +18,10 @@ describe('ScriptApiModal', () => {
         }
     });
 
-    it('renders the --@score annotation entry', () => {
+    it('renders the --@music and --@sfx annotation entries', () => {
         render(<ScriptApiModal open={true} onClose={() => {}} />);
-        expect(screen.getByText('--@score')).toBeInTheDocument();
+        expect(screen.getByText('--@music')).toBeInTheDocument();
+        expect(screen.getByText('--@sfx')).toBeInTheDocument();
     });
 
     it('renders the _draw hook entry', () => {

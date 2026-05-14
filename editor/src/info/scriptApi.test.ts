@@ -30,10 +30,11 @@ describe('SCRIPT_API_SECTIONS data', () => {
         }
     });
 
-    it('includes the --@score annotation in an Annotations section', () => {
+    it('includes the --@music and --@sfx annotations in an Annotations section', () => {
         const section = SCRIPT_API_SECTIONS.find((s: ApiSection) => s.title === 'Annotations');
         expect(section).toBeDefined();
-        expect(section!.items.some((e) => e.name === '--@score')).toBe(true);
+        expect(section!.items.some((e) => e.name === '--@music')).toBe(true);
+        expect(section!.items.some((e) => e.name === '--@sfx')).toBe(true);
     });
 
     it('includes the _draw hook in a Hooks section', () => {

@@ -4,7 +4,7 @@ import { findScores } from './scoreLinks';
 
 export type ScorePickCallback = (linkId: string) => void;
 
-// A small inline widget rendered just after the `--@score` annotation comment.
+// A small inline widget rendered just after the `--@music` / `--@sfx` annotation comment.
 // Clicking it asks the App to switch to the Score tab and select this link.
 // Implemented as a persistent decoration rather than a hover tooltip because
 // CodeMirror's hoverTooltip dismisses when the cursor leaves the source range,

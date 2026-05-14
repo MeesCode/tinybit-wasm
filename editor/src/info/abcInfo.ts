@@ -80,7 +80,7 @@ export const ABC_SECTIONS: AbcSection[] = [
     {
         title: 'Music vs SFX scores',
         body: [
-            { text: 'A score annotated --@score is played through music(), which loops and has room for up to 400 notes per voice.' },
+            { text: 'A score annotated --@music is played through music(), which loops and has room for up to 400 notes per voice.' },
             { text: 'A score annotated --@sfx is played through sfx(), which is one-shot and is limited to 10 notes per voice.' },
             { text: 'Both kinds share 3 voices. The note-count badge in the Score tab reflects the limit of the kind you are editing.' },
             { text: 'Example of a short SFX phrase:', abc: 'L:1/8\nK:C\nc/4d/4e/4g/4' },

@@ -26,10 +26,16 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
         title: 'Annotations',
         items: [
             {
-                name: '--@score',
-                signature: '--@score[: name]',
-                description: 'Editor-only marker. Place above a Lua string literal containing an ABC score; the Score tab will list it as an editable score. Optional name shows up as a chip.',
-                example: '--@score: tune\nlocal tune = [[\nL:1/4\nK:C\nC D E F |\n]]\nmusic(tune)',
+                name: '--@music',
+                signature: '--@music[: name]',
+                description: 'Editor-only marker. Place above a Lua string literal containing an ABC music score; the Score tab will list it as an editable score. Optional name shows up as a chip.',
+                example: '--@music: tune\nlocal tune = [[\nL:1/4\nK:C\nC D E F |\n]]\nmusic(tune)',
+            },
+            {
+                name: '--@sfx',
+                signature: '--@sfx[: name]',
+                description: 'Editor-only marker. Place above a Lua string literal containing a short ABC SFX (≤10 notes/voice); the Score tab will list it as an editable score with the SFX cap. Optional name shows up as a chip.',
+                example: '--@sfx: jump\nlocal jump = "c/4d/4e/4"\nsfx(jump)',
             },
         ],
     },

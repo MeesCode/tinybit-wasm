@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { findScores } from './scoreLinks';
 
 describe('findScores — long-bracket form', () => {
-    it('detects --@score followed by [[ ... ]]', () => {
+    it('detects --@music followed by [[ ... ]]', () => {
         const script = [
             'local x = 1',
-            '--@score',
+            '--@music',
             'local tune = [[',
             'L:1/4',
             'K:C',
@@ -17,7 +17,7 @@ describe('findScores — long-bracket form', () => {
         expect(diagnostics).toEqual([]);
         expect(links).toHaveLength(1);
         const [link] = links;
-        expect(link.id).toBe('music:anon:2');      // annotationLine is 1-based; --@score is line 2
+        expect(link.id).toBe('music:anon:2');      // annotationLine is 1-based; --@music is line 2
         expect(link.name).toBeUndefined();
         expect(link.form).toEqual({ kind: 'long', level: 0 });
         // content trims neither leading nor trailing newline that abuts the bracket:
@@ -28,28 +28,28 @@ describe('findScores — long-bracket form', () => {
         expect(script.slice(link.closerRange.from, link.closerRange.to)).toBe(']]');
     });
 
-    it('detects --@score: name and captures the name', () => {
-        const script = `--@score: bass_line\nlocal bass = [[\nK:C\nC,4\n]]\n`;
+    it('detects --@music: name and captures the name', () => {
+        const script = `--@music: bass_line\nlocal bass = [[\nK:C\nC,4\n]]\n`;
         const { links } = findScores(script);
         expect(links).toHaveLength(1);
         expect(links[0].name).toBe('bass_line');
         expect(links[0].id).toBe('music:name:bass_line');
     });
 
-    it('handles --@score:  name (with extra whitespace)', () => {
-        const script = `--@score:   verse\nlocal v = [[K:C\nC\n]]\n`;
+    it('handles --@music:  name (with extra whitespace)', () => {
+        const script = `--@music:   verse\nlocal v = [[K:C\nC\n]]\n`;
         const { links } = findScores(script);
         expect(links[0].name).toBe('verse');
     });
 
-    it('handles --@score: (empty name) as unnamed', () => {
-        const script = `--@score:   \nlocal v = [[K:C\nC\n]]\n`;
+    it('handles --@music: (empty name) as unnamed', () => {
+        const script = `--@music:   \nlocal v = [[K:C\nC\n]]\n`;
         const { links } = findScores(script);
         expect(links[0].name).toBeUndefined();
     });
 
     it('detects [==[ ... ]==] (one level of escalation)', () => {
-        const script = `--@score\nlocal v = [==[\nL:1/4\n[[ literal in score ]] is fine\n]==]\n`;
+        const script = `--@music\nlocal v = [==[\nL:1/4\n[[ literal in score ]] is fine\n]==]\n`;
         const { links } = findScores(script);
         expect(links).toHaveLength(1);
         expect(links[0].form).toEqual({ kind: 'long', level: 2 });
@@ -57,17 +57,17 @@ describe('findScores — long-bracket form', () => {
     });
 
     it('detects [===[ ... ]===] (two levels)', () => {
-        const script = `--@score\nlocal v = [===[\nx\n]===]\n`;
+        const script = `--@music\nlocal v = [===[\nx\n]===]\n`;
         expect(findScores(script).links[0].form).toEqual({ kind: 'long', level: 3 });
     });
 
     it('skips blank lines between annotation and literal (within 3)', () => {
-        const script = `--@score\n\n\nlocal v = [[\nK:C\nC\n]]\n`;
+        const script = `--@music\n\n\nlocal v = [[\nK:C\nC\n]]\n`;
         expect(findScores(script).links).toHaveLength(1);
     });
 
     it('emits diagnostic when no literal within 3 non-blank lines', () => {
-        const script = `--@score\nlocal a = 1\nlocal b = 2\nlocal c = 3\nlocal v = [[\nK:C\n]]\n`;
+        const script = `--@music\nlocal a = 1\nlocal b = 2\nlocal c = 3\nlocal v = [[\nK:C\n]]\n`;
         const { links, diagnostics } = findScores(script);
         expect(links).toHaveLength(0);
         expect(diagnostics).toHaveLength(1);
@@ -76,16 +76,16 @@ describe('findScores — long-bracket form', () => {
 });
 
 describe('findScores — quoted form', () => {
-    it('detects --@score with "..." literal and decodes \\n', () => {
-        const script = `--@score\nlocal v = "L:1/4\\nK:C\\nC4"\n`;
+    it('detects --@music with "..." literal and decodes \\n', () => {
+        const script = `--@music\nlocal v = "L:1/4\\nK:C\\nC4"\n`;
         const { links } = findScores(script);
         expect(links).toHaveLength(1);
         expect(links[0].form).toEqual({ kind: 'quoted', quote: '"' });
         expect(links[0].content).toBe('L:1/4\nK:C\nC4');
     });
 
-    it("detects --@score with '...' literal", () => {
-        const script = `--@score\nlocal v = 'c/4d/4'\n`;
+    it("detects --@music with '...' literal", () => {
+        const script = `--@music\nlocal v = 'c/4d/4'\n`;
         const { links } = findScores(script);
         expect(links[0].form).toEqual({ kind: 'quoted', quote: "'" });
         expect(links[0].content).toBe('c/4d/4');
@@ -93,27 +93,27 @@ describe('findScores — quoted form', () => {
 });
 
 describe('findScores — robustness', () => {
-    it('ignores --@score appearing inside a string literal', () => {
-        const script = `local x = "--@score actually inside a string"\nlocal y = 1\n`;
+    it('ignores --@music appearing inside a string literal', () => {
+        const script = `local x = "--@music actually inside a string"\nlocal y = 1\n`;
         const { links, diagnostics } = findScores(script);
         expect(links).toEqual([]);
         expect(diagnostics).toEqual([]);
     });
 
-    it('ignores --@score inside a long-bracket literal', () => {
-        const script = `local x = [[\n--@score not an annotation\n]]\nlocal y = 1\n`;
+    it('ignores --@music inside a long-bracket literal', () => {
+        const script = `local x = [[\n--@music not an annotation\n]]\nlocal y = 1\n`;
         expect(findScores(script).links).toEqual([]);
     });
 
-    it('ignores --@score inside a --[[ ... ]] block comment', () => {
-        const script = `--[[ --@score not an annotation ]]\nlocal y = 1\n`;
+    it('ignores --@music inside a --[[ ... ]] block comment', () => {
+        const script = `--[[ --@music not an annotation ]]\nlocal y = 1\n`;
         expect(findScores(script).links).toEqual([]);
     });
 
     it('produces a duplicate-name diagnostic when two scores share a name', () => {
         const script =
-            `--@score: tune\nlocal a = [[K:C\nC\n]]\n` +
-            `--@score: tune\nlocal b = [[K:C\nD\n]]\n`;
+            `--@music: tune\nlocal a = [[K:C\nC\n]]\n` +
+            `--@music: tune\nlocal b = [[K:C\nD\n]]\n`;
         const { links, diagnostics } = findScores(script);
         expect(links).toHaveLength(2);
         const dups = diagnostics.filter((d) => d.kind === 'duplicate-name');
@@ -122,8 +122,8 @@ describe('findScores — robustness', () => {
 
     it('returns multiple links in script order', () => {
         const script =
-            `--@score: first\nlocal a = [[K:C\nC\n]]\n` +
-            `--@score: second\nlocal b = [[K:C\nD\n]]\n`;
+            `--@music: first\nlocal a = [[K:C\nC\n]]\n` +
+            `--@music: second\nlocal b = [[K:C\nD\n]]\n`;
         const { links } = findScores(script);
         expect(links.map((l) => l.name)).toEqual(['first', 'second']);
         expect(links[0].annotationLine).toBe(1);
@@ -140,8 +140,8 @@ describe('findScores — robustness', () => {
         expect(links[0].id).toBe('sfx:name:jump');
     });
 
-    it('tags --@score links with kind="music"', () => {
-        const script = `--@score: tune\nlocal t = [[K:C\nC\n]]\n`;
+    it('tags --@music links with kind="music"', () => {
+        const script = `--@music: tune\nlocal t = [[K:C\nC\n]]\n`;
         const { links } = findScores(script);
         expect(links[0].kind).toBe('music');
         expect(links[0].id).toBe('music:name:tune');
@@ -149,7 +149,7 @@ describe('findScores — robustness', () => {
 
     it('allows same name across kinds without a duplicate diagnostic', () => {
         const script =
-            `--@score: bass\nlocal a = [[K:C\nC\n]]\n` +
+            `--@music: bass\nlocal a = [[K:C\nC\n]]\n` +
             `--@sfx: bass\nlocal b = "c"\n`;
         const { links, diagnostics } = findScores(script);
         expect(diagnostics).toEqual([]);

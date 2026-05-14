@@ -229,18 +229,18 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                             {l.name ?? `(anon @ line ${l.annotationLine})`}
                         </button>
                     ))}
-                <button type="button" style={newScoreBtn} onClick={() => handleCreate('music')}>+ New score</button>
+                <button type="button" style={newScoreBtn} onClick={() => handleCreate('music')}>+ New music</button>
                 <button type="button" style={newSfxBtn}   onClick={() => handleCreate('sfx')}>+ New SFX</button>
                 <HelpButton onClick={() => setHelpOpen(true)} aria-label="ABC notation help" style={{ marginLeft: 4 }} />
             </div>
             {linkStale && (
                 <div style={banner}>
-                    This score is no longer linked to the script. Pick another score, or click + New score.
+                    This score is no longer linked to the script. Pick another score, or click + New music / + New SFX.
                 </div>
             )}
             {!selectedLink && !linkStale && links.length === 0 && (
                 <div style={emptyState}>
-                    Click <b>+ New score</b> to insert a starter ABC score into your script.
+                    Click <b>+ New music</b> or <b>+ New SFX</b> to insert a starter ABC score into your script.
                 </div>
             )}
             {selectedLink && (

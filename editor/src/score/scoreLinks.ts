@@ -61,14 +61,14 @@ export function findScores(script: string): FindScoresResult {
         }
         // Lua line comment
         if (ch === '-' && script[i + 1] === '-') {
-            // Check for --@score[: name] pattern on this line (after stripping leading -- and whitespace)
+            // Check for --@music[: name] or --@sfx[: name] on this line.
             // We need the annotation to be the *whole* contentful payload of the comment line.
             const lineEnd = script.indexOf('\n', i);
             const lineSlice = script.slice(i, lineEnd === -1 ? script.length : lineEnd);
-            const m = /^--\s*@(score|sfx)(?:\s*:\s*(\S+)?)?\s*$/.exec(lineSlice);
+            const m = /^--\s*@(music|sfx)(?:\s*:\s*(\S+)?)?\s*$/.exec(lineSlice);
             if (m) {
                 const annotationLine = lineOf(i);
-                const kind: ScoreKind = m[1] === 'sfx' ? 'sfx' : 'music';
+                const kind = m[1] as ScoreKind;
                 const rawName = m[2];
                 const name = rawName && rawName.length > 0 ? rawName : undefined;
                 const literalStart = findLiteralOpener(script, lineEnd + 1);
@@ -118,7 +118,7 @@ export function findScores(script: string): FindScoresResult {
             i = lineEnd === -1 ? script.length : lineEnd + 1;
             continue;
         }
-        // String literals — skip their contents so embedded `--@score` is ignored.
+        // String literals — skip their contents so embedded `--@music` is ignored.
         if (ch === '"' || ch === "'") {
             i = skipQuoted(script, i, ch);
             continue;

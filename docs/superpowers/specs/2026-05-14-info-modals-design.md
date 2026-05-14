@@ -6,7 +6,7 @@
 
 ## Problem
 
-The editor exposes a sizable Lua API (~35 functions plus constants), an engine hook (`_draw`, called by the engine every frame), and a new editor-only annotation (`--@score[: name]`). It also expects users to write ABC music notation in the Score tab. None of this is discoverable from inside the editor — a newcomer has to read the upstream TinyBit README, the abcjs docs, and our own commit history to figure out what's available.
+The editor exposes a sizable Lua API (~35 functions plus constants), an engine hook (`_draw`, called by the engine every frame), and a new editor-only annotation (`--@music[: name]`). It also expects users to write ABC music notation in the Score tab. None of this is discoverable from inside the editor — a newcomer has to read the upstream TinyBit README, the abcjs docs, and our own commit history to figure out what's available.
 
 Add two information modals that sit one click away from the surface they document.
 
@@ -64,7 +64,7 @@ Visual style mirrors `UploadConfirm.tsx`: same overlay backdrop tint, same pill-
 Grouped sections, in fixed order:
 
 1. **Hooks** — `_draw` (signature + description + tiny code example). The engine calls this Lua-defined function once per frame.
-2. **Annotations** — `--@score[: name]` (the editor-only annotation we just added; example shows a full `[[...]]` block bound to `music(...)`).
+2. **Annotations** — `--@music[: name]` (the editor-only annotation we just added; example shows a full `[[...]]` block bound to `music(...)`).
 3. **Drawing** — `cls`, `sprite`, `line`, `rect`, `oval`, `pset`, `pget`, `text`, `cursor`, `print`, `poly_add`, `poly_clear`, `draw_polygon`, `duplicate`, `stroke`, `fill`.
 4. **Color** — `rgb`, `rgba`, `hsb`, `hsba`.
 5. **Audio** — `music`, `sfx`, `sfx_active`, `bpm`.
@@ -197,7 +197,7 @@ Both files are pure constants. No imports beyond their type definitions. Easy to
 
 ### Source of truth for the API list
 
-The Lua API surface is defined in `src/tinybit/lua_functions.c` (`lua_setglobal` calls) plus our editor-side `--@score` annotation. The `scriptApi.ts` file is hand-curated to match. We deliberately do NOT auto-extract from C source — too brittle, and descriptions need human writing anyway. When the engine adds or renames a function upstream, updating `scriptApi.ts` is a separate intentional change.
+The Lua API surface is defined in `src/tinybit/lua_functions.c` (`lua_setglobal` calls) plus our editor-side `--@music` annotation. The `scriptApi.ts` file is hand-curated to match. We deliberately do NOT auto-extract from C source — too brittle, and descriptions need human writing anyway. When the engine adds or renames a function upstream, updating `scriptApi.ts` is a separate intentional change.
 
 ### Wiring
 
@@ -245,7 +245,7 @@ const [helpOpen, setHelpOpen] = useState(false);
 - **`InfoModal.test.tsx`** — renders/doesn't render based on `open`; ✕ click, backdrop click, and Escape each invoke `onClose`; body has `overflow: auto` style.
 - **`HelpButton.test.tsx`** — click invokes `onClick`; respects `aria-label`.
 - **`MiniScore.test.tsx`** — renders an SVG via mocked abcjs for valid ABC; renders an error band on abcjs throw; re-renders on `abc` prop change.
-- **`ScriptApiModal.test.tsx`** — renders all section titles from `SCRIPT_API_SECTIONS`; contains an entry for `--@score` and an entry for `_draw` (regression guards); ✕ click invokes `onClose`.
+- **`ScriptApiModal.test.tsx`** — renders all section titles from `SCRIPT_API_SECTIONS`; contains an entry for `--@music` and an entry for `_draw` (regression guards); ✕ click invokes `onClose`.
 - **`AbcInfoModal.test.tsx`** — renders all section titles from `ABC_SECTIONS`; renders a `MiniScore` per entry with an `abc` field (assert via mocked abcjs producing a known test-id SVG); ✕ click invokes `onClose`.
 - **`scriptApi.test.ts`** — every section non-empty; every entry has `name`, `signature`, `description`; no duplicate names within any section.
 - **`abcInfo.test.ts`** — every section non-empty; every entry has `text`; no entry has an `abc` field shorter than 4 characters (catches accidental empties).

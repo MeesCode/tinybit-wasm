@@ -67,7 +67,7 @@ export function insertNewScoreSnippet(
     kind: ScoreKind,
 ): InsertResult {
     const name = nextUnusedName(script, kind);
-    const annotation = kind === 'sfx' ? `--@sfx: ${name}` : `--@score: ${name}`;
+    const annotation = `--@${kind}: ${name}`;
     const body = kind === 'sfx'
         ? `local ${name} = "${SFX_TEMPLATE_BODY}"\n`
         : `local ${name} = [[${MUSIC_TEMPLATE_BODY}]]\n`;
@@ -80,7 +80,7 @@ export function insertNewScoreSnippet(
 }
 
 function nextUnusedName(script: string, kind: ScoreKind): string {
-    const prefix = kind === 'sfx' ? 'sfx' : 'score';
+    const prefix = kind;
     const taken = new Set(
         findScores(script).links
             .filter((l) => l.kind === kind && l.name)

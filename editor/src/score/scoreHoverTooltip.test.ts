@@ -17,7 +17,7 @@ describe('scoreHoverTooltip', () => {
     });
 
     it('does not throw when applied to a script with a linked score', () => {
-        const script = '--@score: m\nlocal m = [[\nK:C\nC\n]]\nmusic(m)\n';
+        const script = '--@music: m\nlocal m = [[\nK:C\nC\n]]\nmusic(m)\n';
         const view = makeView(script);
         expect(view.state.doc.toString()).toBe(script);
         view.destroy();
