@@ -10,6 +10,7 @@ export interface ToolbarProps {
     onPlay():   void;
     onStop():   void;
     onClear():  void;
+    onDemo():   void;
     onOpen():   void;
     onDownload(): void;
     onResetEngine?(): void;
@@ -62,6 +63,9 @@ export function Toolbar(p: ToolbarProps) {
             </button>
             <button type="button" onClick={p.onClear} style={neutralStyle} aria-label="Clear editor">
                 🗑 Clear
+            </button>
+            <button type="button" onClick={p.onDemo} style={neutralStyle} aria-label="Load demo">
+                ⭐ Demo
             </button>
             <button type="button" onClick={p.onOpen} style={neutralStyle} aria-label="Open">
                 📂 Open

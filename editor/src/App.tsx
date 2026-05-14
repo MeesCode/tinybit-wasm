@@ -25,6 +25,7 @@ import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
 import { ClearConfirm } from './ui/ClearConfirm';
+import { DemoConfirm } from './ui/DemoConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -59,6 +60,7 @@ export function App() {
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    const [demoConfirmOpen, setDemoConfirmOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -344,6 +346,22 @@ export function App() {
         setClearConfirmOpen(false);
     }, []);
 
+    const handleDemo = useCallback(() => {
+        setDemoConfirmOpen(true);
+    }, []);
+
+    const handleDemoCancel = useCallback(() => {
+        setDemoConfirmOpen(false);
+    }, []);
+
+    const handleDemoConfirm = useCallback(() => {
+        setDemoConfirmOpen(false);
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        setEngineState('idle');
+        void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
+    }, [runtime, sketch, consoleAppend]);
+
     const handleClearConfirm = useCallback(() => {
         setClearConfirmOpen(false);
         frameLoopRef.current?.stop();
@@ -382,6 +400,7 @@ export function App() {
                 onPlay={handlePlay}
                 onStop={handleStop}
                 onClear={handleClear}
+                onDemo={handleDemo}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -445,6 +464,12 @@ export function App() {
                 <ClearConfirm
                     onClear={handleClearConfirm}
                     onCancel={handleClearCancel}
+                />
+            )}
+            {demoConfirmOpen && (
+                <DemoConfirm
+                    onLoad={handleDemoConfirm}
+                    onCancel={handleDemoCancel}
                 />
             )}
             <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
