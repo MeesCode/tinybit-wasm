@@ -9,6 +9,7 @@ export interface ToolbarProps {
     canPlay: boolean;
     onPlay():   void;
     onStop():   void;
+    onReset():  void;
     onOpen():   void;
     onDownload(): void;
     onResetEngine?(): void;
@@ -58,6 +59,9 @@ export function Toolbar(p: ToolbarProps) {
             <PlayButton running={running} disabled={!p.canPlay} onClick={p.onPlay} />
             <button type="button" onClick={p.onStop} disabled={!running} style={{ ...neutralStyle, opacity: running ? 1 : 0.4 }} aria-label="Stop">
                 ■ Stop
+            </button>
+            <button type="button" onClick={p.onReset} style={neutralStyle} aria-label="Reset to demo">
+                ↺ Reset
             </button>
             <button type="button" onClick={p.onOpen} style={neutralStyle} aria-label="Open">
                 📂 Open
