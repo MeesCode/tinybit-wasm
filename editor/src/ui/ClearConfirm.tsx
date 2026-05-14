@@ -18,14 +18,14 @@ const btnBase: CSSProperties = {
     border: '1px solid #ECECF0', cursor: 'pointer',
 };
 const cancelStyle: CSSProperties = { ...btnBase, background: '#F1F1F4', color: '#181820' };
-const resetStyle:  CSSProperties = { ...btnBase, background: '#ED225D', color: '#FFFFFF', borderColor: '#ED225D' };
+const clearStyle:  CSSProperties = { ...btnBase, background: '#ED225D', color: '#FFFFFF', borderColor: '#ED225D' };
 
-export interface ResetConfirmProps {
-    onReset():  void;
+export interface ClearConfirmProps {
+    onClear():  void;
     onCancel(): void;
 }
 
-export function ResetConfirm({ onReset, onCancel }: ResetConfirmProps) {
+export function ClearConfirm({ onClear, onCancel }: ClearConfirmProps) {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -38,16 +38,16 @@ export function ResetConfirm({ onReset, onCancel }: ResetConfirmProps) {
     }, [onCancel]);
 
     return createPortal(
-        <div style={overlayStyle} role="dialog" aria-modal="true" aria-label="Reset to demo?">
+        <div style={overlayStyle} role="dialog" aria-modal="true" aria-label="Clear editor?">
             <div style={dialogStyle}>
-                <div style={titleStyle}>Reset to the demo?</div>
+                <div style={titleStyle}>Clear the editor?</div>
                 <div style={bodyStyle}>
                     This will discard your current script, sprite, cover, title, and author.
                     Editor preferences are kept.
                 </div>
                 <div style={actionsStyle}>
                     <button type="button" style={cancelStyle} onClick={onCancel} autoFocus>Cancel</button>
-                    <button type="button" style={resetStyle}  onClick={onReset}>Reset</button>
+                    <button type="button" style={clearStyle}  onClick={onClear}>Clear</button>
                 </div>
             </div>
         </div>,

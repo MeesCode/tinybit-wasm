@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
-import { loadSketch, saveSketchDebounced, clearSketch } from './state/persist';
+import { loadSketch, saveSketch, saveSketchDebounced } from './state/persist';
 import { loadDemo } from './state/demo';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
@@ -24,7 +24,7 @@ import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
-import { ResetConfirm } from './ui/ResetConfirm';
+import { ClearConfirm } from './ui/ClearConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -58,7 +58,7 @@ export function App() {
     const [isDragging, setIsDragging] = useState(false);
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
-    const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+    const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -336,21 +336,28 @@ export function App() {
         setEngineState('idle');
     }, [runtime]);
 
-    const handleReset = useCallback(() => {
-        setResetConfirmOpen(true);
+    const handleClear = useCallback(() => {
+        setClearConfirmOpen(true);
     }, []);
 
-    const handleResetCancel = useCallback(() => {
-        setResetConfirmOpen(false);
+    const handleClearCancel = useCallback(() => {
+        setClearConfirmOpen(false);
     }, []);
 
-    const handleResetConfirm = useCallback(() => {
-        setResetConfirmOpen(false);
+    const handleClearConfirm = useCallback(() => {
+        setClearConfirmOpen(false);
         frameLoopRef.current?.stop();
         runtime?.tb.stop();
         setEngineState('idle');
-        clearSketch();
-        void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
+        sketch.setScript('');
+        sketch.setTitle('');
+        sketch.setAuthor('');
+        sketch.setCover(null);
+        sketch.clearSprite();
+        saveSketch(
+            { script: '', sprite: null, cover: null, title: '', author: '' },
+            (msg) => consoleAppend('warn', msg),
+        );
     }, [runtime, sketch, consoleAppend]);
 
     const canPlay = useMemo(() => runtime !== null && sketch.script.trim().length > 0, [runtime, sketch.script]);
@@ -374,7 +381,7 @@ export function App() {
                 canPlay={canPlay}
                 onPlay={handlePlay}
                 onStop={handleStop}
-                onReset={handleReset}
+                onClear={handleClear}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -434,10 +441,10 @@ export function App() {
                     onCancel={handleConfirmCancel}
                 />
             )}
-            {resetConfirmOpen && (
-                <ResetConfirm
-                    onReset={handleResetConfirm}
-                    onCancel={handleResetCancel}
+            {clearConfirmOpen && (
+                <ClearConfirm
+                    onClear={handleClearConfirm}
+                    onCancel={handleClearCancel}
                 />
             )}
             <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { loadSketch, saveSketch, clearSketch, SKETCH_KEY, UI_KEY, loadSpriteUi, saveSpriteUi, SPRITE_UI_KEY } from './persist';
+import { loadSketch, saveSketch, SKETCH_KEY, UI_KEY, loadSpriteUi, saveSpriteUi, SPRITE_UI_KEY } from './persist';
 import { DEFAULT_SCRIPT } from './sketchStore';
 
 beforeEach(() => localStorage.clear());
@@ -25,18 +25,6 @@ describe('persist', () => {
     test('loadSketch returns null on malformed JSON', () => {
         localStorage.setItem(SKETCH_KEY, '{not json');
         expect(loadSketch()).toBeNull();
-    });
-
-    test('clearSketch removes only the sketch key, leaving UI and sprite-UI alone', () => {
-        saveSketch({ script: 'x', sprite: null, cover: null, title: '', author: '' });
-        localStorage.setItem(UI_KEY,        JSON.stringify({ panel: 0.5 }));
-        localStorage.setItem(SPRITE_UI_KEY, JSON.stringify({ tool: 'fill' }));
-
-        clearSketch();
-
-        expect(localStorage.getItem(SKETCH_KEY)).toBeNull();
-        expect(localStorage.getItem(UI_KEY)).not.toBeNull();
-        expect(localStorage.getItem(SPRITE_UI_KEY)).not.toBeNull();
     });
 
     test('saveSketch swallows quota errors and reports via the sink', () => {
