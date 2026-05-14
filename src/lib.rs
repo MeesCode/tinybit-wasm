@@ -763,6 +763,11 @@ fn preview_play(channel: c_int, len: u32, repeat: bool) -> i32 {
         }
         // Append trailing NUL so it's a valid C string.
         state.buf[len] = 0;
+        // Each preview is a self-contained audition: clear both channels
+        // first so leftover state from a prior game cartridge or a previous
+        // preview can't bleed in. audio_load_abc only resets the target
+        // channel, so without this the other channel keeps playing.
+        unsafe { bindings::audio_stop_all(); }
         let rc = unsafe {
             bindings::audio_load_abc(
                 channel,
