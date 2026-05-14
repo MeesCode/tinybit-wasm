@@ -37,4 +37,10 @@ describe('ResetConfirm', () => {
         await userEvent.keyboard('{Escape}');
         expect(onCancel).toHaveBeenCalledOnce();
     });
+
+    test('Cancel button receives focus on open (Reset does not)', () => {
+        render(<ResetConfirm onReset={() => {}} onCancel={() => {}} />);
+        expect(screen.getByRole('button', { name: /cancel/i })).toHaveFocus();
+        expect(screen.getByRole('button', { name: /^reset$/i })).not.toHaveFocus();
+    });
 });

@@ -46,7 +46,7 @@ export function ResetConfirm({ onReset, onCancel }: ResetConfirmProps) {
                     Editor preferences are kept.
                 </div>
                 <div style={actionsStyle}>
-                    <button type="button" style={cancelStyle} onClick={onCancel}>Cancel</button>
+                    <button type="button" style={cancelStyle} onClick={onCancel} autoFocus>Cancel</button>
                     <button type="button" style={resetStyle}  onClick={onReset}>Reset</button>
                 </div>
             </div>
