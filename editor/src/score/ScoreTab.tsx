@@ -240,7 +240,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                         <PanelResizeHandle style={splitHandle} />
                         <Panel defaultSize={50} minSize={15}>
                             <div style={previewPaneStyle}>
-                                <ScorePreview abc={buffer} />
+                                <ScorePreview abc={buffer} flushKey={selectedLink.id} />
                             </div>
                         </Panel>
                     </PanelGroup>

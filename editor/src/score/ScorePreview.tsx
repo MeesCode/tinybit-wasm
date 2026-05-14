@@ -36,13 +36,18 @@ const PREVIEW_DEBOUNCE_MS = 1000;
 
 export interface ScorePreviewProps {
     abc: string;
+    // Changing this value forces an immediate render that bypasses the typing
+    // debounce. Pass the selected score's id so picking a different score
+    // updates the preview right away instead of waiting for the idle timer.
+    flushKey?: string;
 }
 
-export function ScorePreview({ abc }: ScorePreviewProps) {
+export function ScorePreview({ abc, flushKey }: ScorePreviewProps) {
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const targetRef = useRef<HTMLDivElement | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [renderAbc, setRenderAbc] = useState<RenderAbc | null>(null);
+    const lastFlushKeyRef = useRef<string | undefined>(undefined);
 
     useEffect(() => {
         let cancelled = false;
@@ -87,10 +92,13 @@ export function ScorePreview({ abc }: ScorePreviewProps) {
     // abcjs parses + lays out the full score on every call; on large scores
     // that's tens to hundreds of ms. Debounce so typing isn't blocked by a
     // re-render per keystroke. The score is purely a preview, so a brief lag
-    // behind the editor is fine.
+    // behind the editor is fine — but skip the wait when flushKey changes
+    // (selection switch / first render) so the preview snaps in immediately.
     useEffect(() => {
         if (!renderAbc || !targetRef.current) return;
-        const handle = window.setTimeout(() => {
+        const immediate = flushKey !== lastFlushKeyRef.current;
+        lastFlushKeyRef.current = flushKey;
+        const doRender = () => {
             const el = targetRef.current;
             if (!el) return;
             setError(null);
@@ -102,9 +110,11 @@ export function ScorePreview({ abc }: ScorePreviewProps) {
                 el.innerHTML = '';
                 setError(err instanceof Error ? err.message : String(err));
             }
-        }, PREVIEW_DEBOUNCE_MS);
+        };
+        if (immediate) { doRender(); return; }
+        const handle = window.setTimeout(doRender, PREVIEW_DEBOUNCE_MS);
         return () => window.clearTimeout(handle);
-    }, [renderAbc, abc, hostWidth]);
+    }, [renderAbc, abc, hostWidth, flushKey]);
 
     return (
         <div style={outerWrap}>
