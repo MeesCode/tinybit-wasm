@@ -69,7 +69,7 @@ export async function loadDemo(
     sketch.setAuthor(DEMO_AUTHOR);
     sketch.setCover(null);
     try {
-        const res = await fetch('/demo-sprite.png');
+        const res = await fetch('./demo-sprite.png');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const bytes = new Uint8Array(await res.arrayBuffer());
         await sketch.setSpriteFromPng(bytes);
