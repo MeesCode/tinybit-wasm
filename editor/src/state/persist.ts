@@ -68,6 +68,10 @@ export function saveSketch(s: PersistedSketch, warn?: WarnSink): void {
     }
 }
 
+export function clearSketch(): void {
+    try { localStorage.removeItem(SKETCH_KEY); } catch { /* ignore */ }
+}
+
 let debounceId: ReturnType<typeof setTimeout> | null = null;
 
 export function saveSketchDebounced(s: PersistedSketch, warn?: WarnSink, ms = 500): void {
