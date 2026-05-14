@@ -198,7 +198,7 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
     const handleStop = useCallback(() => { preview.stop(); }, [preview]);
 
     const counts = useMemo(() => countAbc(buffer), [buffer]);
-    const nStatus = noteStatus(counts.notes);
+    const nStatus = noteStatus(counts.notes, 'music');
     const vStatus = voiceStatus(counts.voices);
 
     const linkStale = selectedId != null && !selectedLink;
