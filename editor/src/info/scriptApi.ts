@@ -79,7 +79,6 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
                 example: 'sfx("c/4d/4e/4")',
             },
             { name: 'sfx_active', signature: 'sfx_active() -> bool',  description: 'Returns true while the SFX channel is still playing.' },
-            { name: 'bpm',        signature: 'bpm(new_bpm)',          description: 'Set the audio engine tempo in beats per minute.' },
         ],
     },
     {
