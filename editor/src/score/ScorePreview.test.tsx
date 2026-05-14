@@ -14,23 +14,27 @@ vi.mock('abcjs', () => ({
 beforeEach(() => { renderAbc.mockClear(); });
 afterEach(() => { cleanup(); });
 
+// ScorePreview debounces renderAbc by ~1 s of idle, so the waitFor timeouts
+// here have to outlive that — otherwise the assertions race the debounce.
+const WAIT = { timeout: 2500 };
+
 describe('ScorePreview', () => {
     it('renders an SVG via abcjs when given valid ABC', async () => {
         render(<ScorePreview abc="K:C\nC D E F" />);
-        await waitFor(() => expect(renderAbc).toHaveBeenCalled());
-        await waitFor(() => expect(screen.getByTestId('rendered-svg')).toBeInTheDocument());
+        await waitFor(() => expect(renderAbc).toHaveBeenCalled(), WAIT);
+        await waitFor(() => expect(screen.getByTestId('rendered-svg')).toBeInTheDocument(), WAIT);
     });
 
     it('renders an error band when abcjs throws', async () => {
         renderAbc.mockImplementationOnce(() => { throw new Error('boom'); });
         render(<ScorePreview abc="totally broken" />);
-        await waitFor(() => expect(screen.getByText(/boom/i)).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText(/boom/i)).toBeInTheDocument(), WAIT);
     });
 
     it('re-renders when abc prop changes', async () => {
         const { rerender } = render(<ScorePreview abc="K:C\nC" />);
-        await waitFor(() => expect(renderAbc).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(renderAbc).toHaveBeenCalledTimes(1), WAIT);
         rerender(<ScorePreview abc="K:G\nG" />);
-        await waitFor(() => expect(renderAbc).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(renderAbc).toHaveBeenCalledTimes(2), WAIT);
     });
 });

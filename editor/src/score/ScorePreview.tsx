@@ -32,6 +32,8 @@ const errorBand: CSSProperties = {
     borderRadius: 4,
 };
 
+const PREVIEW_DEBOUNCE_MS = 1000;
+
 export interface ScorePreviewProps {
     abc: string;
 }
@@ -82,17 +84,26 @@ export function ScorePreview({ abc }: ScorePreviewProps) {
         return () => ro.disconnect();
     }, []);
 
+    // abcjs parses + lays out the full score on every call; on large scores
+    // that's tens to hundreds of ms. Debounce so typing isn't blocked by a
+    // re-render per keystroke. The score is purely a preview, so a brief lag
+    // behind the editor is fine.
     useEffect(() => {
         if (!renderAbc || !targetRef.current) return;
-        setError(null);
-        try {
-            const opts: Record<string, unknown> = { scale: 1 };
-            if (hostWidth > 40) opts.staffwidth = hostWidth - 32;
-            renderAbc(targetRef.current, abc, opts);
-        } catch (err) {
-            targetRef.current.innerHTML = '';
-            setError(err instanceof Error ? err.message : String(err));
-        }
+        const handle = window.setTimeout(() => {
+            const el = targetRef.current;
+            if (!el) return;
+            setError(null);
+            try {
+                const opts: Record<string, unknown> = { scale: 1 };
+                if (hostWidth > 40) opts.staffwidth = hostWidth - 32;
+                renderAbc(el, abc, opts);
+            } catch (err) {
+                el.innerHTML = '';
+                setError(err instanceof Error ? err.message : String(err));
+            }
+        }, PREVIEW_DEBOUNCE_MS);
+        return () => window.clearTimeout(handle);
     }, [renderAbc, abc, hostWidth]);
 
     return (
