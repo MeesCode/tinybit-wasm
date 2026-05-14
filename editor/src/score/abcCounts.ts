@@ -1,7 +1,10 @@
+import type { ScoreKind } from './scoreLinks';
+
 // Engine-side limits from src/tinybit/audio.c. Kept here as the single source
 // of truth for the editor — if the engine ever bumps these the editor reads
 // the new values from here.
 export const MUSIC_MAX_NOTES = 400;
+export const SFX_MAX_NOTES   = 10;
 export const MAX_VOICES      = 3;
 
 export interface AbcCounts {
@@ -76,10 +79,15 @@ export function countAbc(abc: string): AbcCounts {
 
 export type CountStatus = 'ok' | 'warn' | 'over';
 
+export function notesCap(kind: ScoreKind): number {
+    return kind === 'sfx' ? SFX_MAX_NOTES : MUSIC_MAX_NOTES;
+}
+
 // Yellow at >= 90% of capacity, red when over capacity.
-export function noteStatus(notes: number): CountStatus {
-    if (notes >  MUSIC_MAX_NOTES)            return 'over';
-    if (notes >= Math.floor(MUSIC_MAX_NOTES * 0.9)) return 'warn';
+export function noteStatus(notes: number, kind: ScoreKind): CountStatus {
+    const cap = notesCap(kind);
+    if (notes > cap) return 'over';
+    if (notes >= Math.floor(cap * 0.9)) return 'warn';
     return 'ok';
 }
 
