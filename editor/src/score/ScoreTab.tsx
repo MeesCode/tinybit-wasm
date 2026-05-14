@@ -6,7 +6,8 @@ import { findScores, type ScoreLink, type Diagnostic } from './scoreLinks';
 import { insertNewScoreSnippet, replaceScoreContent } from './scoreSync';
 import { ScoreEditor } from './ScoreEditor';
 import { ScorePreview } from './ScorePreview';
-import { countAbc, noteStatus, voiceStatus, MUSIC_MAX_NOTES, MAX_VOICES, type CountStatus } from './abcCounts';
+import { countAbc, noteStatus, voiceStatus, notesCap, MAX_VOICES, type CountStatus } from './abcCounts';
+import type { ScoreKind } from './scoreLinks';
 import type { Preview } from '../engine/preview';
 import { HelpButton } from '../info/HelpButton';
 import { AbcInfoModal } from '../info/AbcInfoModal';
@@ -17,11 +18,16 @@ const chipBar: CSSProperties = {
     padding: '6px 8px', borderBottom: '1px solid #ECECF0', background: '#FAFAFA',
     alignItems: 'center',
 };
-function chipStyle(active: boolean): CSSProperties {
+const SFX_ACCENT = '#0EA5E9';   // sky-500
+const SFX_BG     = '#E0F2FE';   // sky-100
+
+function chipStyle(active: boolean, kind: ScoreKind): CSSProperties {
+    const accent = kind === 'sfx' ? SFX_ACCENT : '#ED225D';
+    const activeBg = kind === 'sfx' ? SFX_BG : '#FDE4EF';
     return {
         padding: '3px 8px', fontSize: 11, fontWeight: 600, letterSpacing: 0.2,
-        borderRadius: 999, border: '1px solid ' + (active ? '#ED225D' : '#ECECF0'),
-        background: active ? '#FDE4EF' : '#FFFFFF', color: active ? '#ED225D' : '#181820',
+        borderRadius: 999, border: '1px solid ' + (active ? accent : '#ECECF0'),
+        background: active ? activeBg : '#FFFFFF', color: active ? accent : '#181820',
         cursor: 'pointer',
     };
 }
@@ -29,6 +35,11 @@ const newScoreBtn: CSSProperties = {
     marginLeft: 'auto', padding: '3px 10px', fontSize: 11, fontWeight: 600,
     borderRadius: 999, border: '1px solid #ED225D',
     background: '#ED225D', color: '#FFFFFF', cursor: 'pointer',
+};
+const newSfxBtn: CSSProperties = {
+    marginLeft: 4, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+    borderRadius: 999, border: '1px solid ' + SFX_ACCENT,
+    background: SFX_ACCENT, color: '#FFFFFF', cursor: 'pointer',
 };
 const editorPaneStyle: CSSProperties = { height: '100%', minHeight: 0, overflow: 'hidden' };
 const previewPaneStyle: CSSProperties = { height: '100%', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' };
@@ -175,12 +186,10 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
         setScript(r.script);
     }, [selectedLink, buffer, flushTimer, setScript, consoleAppend]);
 
-    const handleNewScore = useCallback(() => {
+    const handleCreate = useCallback((kind: 'music' | 'sfx') => {
         flushWriteback();
-        // TODO: thread the script-editor cursor through here so the snippet
-        // can land at the cursor instead of always appending at EOF.
         const current = useSketchStore.getState().script;
-        const { script: newScript, newLink } = insertNewScoreSnippet(current, current.length);
+        const { script: newScript, newLink } = insertNewScoreSnippet(current, current.length, kind);
         setScript(newScript);
         setSelected(newLink.id);
     }, [flushWriteback, setScript, setSelected]);
@@ -188,8 +197,10 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
     const handlePlay = useCallback(async () => {
         if (!selectedLink) return;
         onBeforePreview?.();
-        try { await preview.music(buffer); }
-        catch (err) {
+        try {
+            if (selectedLink.kind === 'sfx') await preview.sfx(buffer);
+            else                              await preview.music(buffer);
+        } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             consoleAppend('error', `Score preview failed: ${msg}`);
         }
@@ -198,7 +209,9 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
     const handleStop = useCallback(() => { preview.stop(); }, [preview]);
 
     const counts = useMemo(() => countAbc(buffer), [buffer]);
-    const nStatus = noteStatus(counts.notes);
+    const kind: ScoreKind = selectedLink?.kind ?? 'music';
+    const nStatus = noteStatus(counts.notes, kind);
+    const cap     = notesCap(kind);
     const vStatus = voiceStatus(counts.voices);
 
     const linkStale = selectedId != null && !selectedLink;
@@ -211,12 +224,13 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                     : links.map((l: ScoreLink) => (
                         <button key={l.id}
                             type="button"
-                            style={chipStyle(l.id === selectedId)}
+                            style={chipStyle(l.id === selectedId, l.kind)}
                             onClick={() => setSelected(l.id)}>
                             {l.name ?? `(anon @ line ${l.annotationLine})`}
                         </button>
                     ))}
-                <button type="button" style={newScoreBtn} onClick={handleNewScore}>+ New score</button>
+                <button type="button" style={newScoreBtn} onClick={() => handleCreate('music')}>+ New score</button>
+                <button type="button" style={newSfxBtn}   onClick={() => handleCreate('sfx')}>+ New SFX</button>
                 <HelpButton onClick={() => setHelpOpen(true)} aria-label="ABC notation help" style={{ marginLeft: 4 }} />
             </div>
             {linkStale && (
@@ -252,8 +266,8 @@ export function ScoreTab({ preview, previewAvailable, selectedLinkId: controlled
                         {!previewAvailable && <span style={{ fontSize: 11, color: '#6B6B76', alignSelf: 'center' }}>Preview requires rebuilding the WASM</span>}
                         <span
                             style={countBadgeStyle(nStatus)}
-                            title={nStatus === 'over' ? `Over engine limit of ${MUSIC_MAX_NOTES} notes per voice` : `Notes (max ${MUSIC_MAX_NOTES} per voice)`}>
-                            {counts.notes}/{MUSIC_MAX_NOTES} notes
+                            title={nStatus === 'over' ? `Over engine limit of ${cap} notes per voice` : `Notes (max ${cap} per voice)`}>
+                            {counts.notes}/{cap} notes
                         </span>
                         <span
                             style={countBadgeFollowerStyle(vStatus)}

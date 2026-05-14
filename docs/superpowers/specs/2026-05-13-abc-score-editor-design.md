@@ -78,6 +78,10 @@ local jump = "c/4d/4e/4g/4"
 sfx(jump)
 ```
 
+### Music vs SFX scores
+
+A score may be annotated with either `--@score` (music channel; up to 400 notes per voice, looped via `music(...)`) or `--@sfx` (SFX channel; up to 10 notes per voice, one-shot via `sfx(...)`). Both share 3 voices. The annotation determines the chip color in the Score tab, the note-count cap shown by the editor's badge, and which `tb_preview_*_play` export the Play button routes through. Names are unique per kind: `--@score: bass` and `--@sfx: bass` may coexist.
+
 Rules:
 
 - `--@score` must occupy a line by itself (whitespace allowed). Optional name: `--@score: name` (one or more spaces after `:`).

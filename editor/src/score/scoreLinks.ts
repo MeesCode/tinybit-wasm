@@ -4,8 +4,11 @@ export type ScoreForm =
     | { kind: 'long'; level: number }            // [[ ]], [==[ ]==], etc; level = number of '=' chars
     | { kind: 'quoted'; quote: '"' | "'" };
 
+export type ScoreKind = 'music' | 'sfx';
+
 export interface ScoreLink {
     id: string;
+    kind: ScoreKind;
     name?: string;
     annotationLine: number;     // 1-based
     contentRange: Range;        // the actual ABC text (excludes brackets/quotes)
@@ -29,7 +32,7 @@ const ANNOTATION_LOOKAHEAD_LINES = 3;
 export function findScores(script: string): FindScoresResult {
     const links: ScoreLink[] = [];
     const diagnostics: Diagnostic[] = [];
-    const seenNames = new Set<string>();
+    const seenNames: Record<ScoreKind, Set<string>> = { music: new Set(), sfx: new Set() };
 
     // Index every newline so we can map offset → line cheaply.
     const lineStarts: number[] = [0];
@@ -62,17 +65,18 @@ export function findScores(script: string): FindScoresResult {
             // We need the annotation to be the *whole* contentful payload of the comment line.
             const lineEnd = script.indexOf('\n', i);
             const lineSlice = script.slice(i, lineEnd === -1 ? script.length : lineEnd);
-            const m = /^--\s*@score(?:\s*:\s*(\S+)?)?\s*$/.exec(lineSlice);
+            const m = /^--\s*@(score|sfx)(?:\s*:\s*(\S+)?)?\s*$/.exec(lineSlice);
             if (m) {
                 const annotationLine = lineOf(i);
-                const rawName = m[1];
+                const kind: ScoreKind = m[1] === 'sfx' ? 'sfx' : 'music';
+                const rawName = m[2];
                 const name = rawName && rawName.length > 0 ? rawName : undefined;
                 const literalStart = findLiteralOpener(script, lineEnd + 1);
                 if (literalStart == null) {
                     diagnostics.push({
                         kind: 'unbound-annotation',
                         line: annotationLine,
-                        message: `--@score on line ${annotationLine} has no following string literal within ${ANNOTATION_LOOKAHEAD_LINES} non-blank lines`,
+                        message: `--@${m[1]} on line ${annotationLine} has no following string literal within ${ANNOTATION_LOOKAHEAD_LINES} non-blank lines`,
                     });
                     i = lineEnd === -1 ? script.length : lineEnd + 1;
                     continue;
@@ -82,14 +86,14 @@ export function findScores(script: string): FindScoresResult {
                     diagnostics.push({
                         kind: 'unbound-annotation',
                         line: annotationLine,
-                        message: `--@score on line ${annotationLine}: malformed string literal`,
+                        message: `--@${m[1]} on line ${annotationLine}: malformed string literal`,
                     });
                     i = lineEnd === -1 ? script.length : lineEnd + 1;
                     continue;
                 }
-                const id = name ? `name:${name}` : `anon:${annotationLine}`;
+                const id = name ? `${kind}:name:${name}` : `${kind}:anon:${annotationLine}`;
                 if (name) {
-                    if (seenNames.has(name)) {
+                    if (seenNames[kind].has(name)) {
                         diagnostics.push({
                             kind: 'duplicate-name',
                             name,
@@ -97,10 +101,10 @@ export function findScores(script: string): FindScoresResult {
                             message: `Duplicate score name "${name}" on line ${annotationLine}`,
                         });
                     }
-                    seenNames.add(name);
+                    seenNames[kind].add(name);
                 }
                 links.push({
-                    id, name, annotationLine,
+                    id, kind, name, annotationLine,
                     openerRange:  { from: parsed.openerFrom, to: parsed.openerTo },
                     contentRange: { from: parsed.contentFrom, to: parsed.contentTo },
                     closerRange:  { from: parsed.closerFrom, to: parsed.closerTo },

@@ -66,7 +66,7 @@ describe('replaceScoreContent — link staleness', () => {
 describe('insertNewScoreSnippet', () => {
     it('inserts a starter snippet at the cursor and returns a valid link', () => {
         const initial = `function _draw() end\n`;
-        const result = insertNewScoreSnippet(initial, initial.length);
+        const result = insertNewScoreSnippet(initial, initial.length, 'music');
         expect(result.script).toContain('--@score: score_1');
         expect(result.script).toContain('[[\nL:1/4\nK:C\nC D E F |\n]]');
         // Returned link points at the inserted score
@@ -77,13 +77,35 @@ describe('insertNewScoreSnippet', () => {
 
     it('chooses an unused name when score_1 is taken', () => {
         const initial = `--@score: score_1\nlocal a = [[\nK:C\nC\n]]\n`;
-        const result = insertNewScoreSnippet(initial, initial.length);
+        const result = insertNewScoreSnippet(initial, initial.length, 'music');
         expect(result.newLink.name).toBe('score_2');
     });
 
     it('prefixes a newline when cursor is mid-line', () => {
         const initial = 'do_thing()';
-        const result = insertNewScoreSnippet(initial, initial.length);
+        const result = insertNewScoreSnippet(initial, initial.length, 'music');
         expect(result.script.startsWith('do_thing()\n')).toBe(true);
+    });
+});
+
+describe('insertNewScoreSnippet (sfx kind)', () => {
+    it('emits a --@sfx annotation with a quoted literal and an sfx_N name', () => {
+        const { script: out, newLink } = insertNewScoreSnippet('', 0, 'sfx');
+        expect(out).toContain('--@sfx: sfx_1');
+        expect(out).toContain('local sfx_1 = "c/4d/4e/4"');
+        expect(newLink.kind).toBe('sfx');
+    });
+
+    it('picks the next unused sfx_N when one already exists', () => {
+        const start = `--@sfx: sfx_1\nlocal a = "c"\n`;
+        const { script: out } = insertNewScoreSnippet(start, start.length, 'sfx');
+        expect(out).toContain('--@sfx: sfx_2');
+    });
+
+    it('music and sfx name pools are independent', () => {
+        // A music score named score_1 should not push the sfx counter past sfx_1.
+        const start = `--@score: score_1\nlocal a = [[K:C\nC\n]]\n`;
+        const { script: out } = insertNewScoreSnippet(start, start.length, 'sfx');
+        expect(out).toContain('--@sfx: sfx_1');
     });
 });

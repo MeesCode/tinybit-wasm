@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countAbc, noteStatus, voiceStatus, MUSIC_MAX_NOTES, MAX_VOICES } from './abcCounts';
+import { countAbc, noteStatus, voiceStatus, MUSIC_MAX_NOTES, MAX_VOICES, SFX_MAX_NOTES, notesCap } from './abcCounts';
 
 describe('countAbc — notes', () => {
     it('counts single-voice notes', () => {
@@ -56,15 +56,15 @@ describe('countAbc — voices', () => {
 
 describe('status thresholds', () => {
     it('noteStatus is ok well under capacity', () => {
-        expect(noteStatus(0)).toBe('ok');
-        expect(noteStatus(Math.floor(MUSIC_MAX_NOTES * 0.5))).toBe('ok');
+        expect(noteStatus(0, 'music')).toBe('ok');
+        expect(noteStatus(Math.floor(MUSIC_MAX_NOTES * 0.5), 'music')).toBe('ok');
     });
     it('noteStatus is warn at >=90% of capacity', () => {
-        expect(noteStatus(Math.floor(MUSIC_MAX_NOTES * 0.9))).toBe('warn');
-        expect(noteStatus(MUSIC_MAX_NOTES)).toBe('warn');
+        expect(noteStatus(Math.floor(MUSIC_MAX_NOTES * 0.9), 'music')).toBe('warn');
+        expect(noteStatus(MUSIC_MAX_NOTES, 'music')).toBe('warn');
     });
     it('noteStatus is over above capacity', () => {
-        expect(noteStatus(MUSIC_MAX_NOTES + 1)).toBe('over');
+        expect(noteStatus(MUSIC_MAX_NOTES + 1, 'music')).toBe('over');
     });
 
     it('voiceStatus is ok at 1', () => {
@@ -76,5 +76,23 @@ describe('status thresholds', () => {
     });
     it('voiceStatus is over above max', () => {
         expect(voiceStatus(MAX_VOICES + 1)).toBe('over');
+    });
+});
+
+describe('per-kind note caps', () => {
+    it('exposes SFX_MAX_NOTES = 10 (engine limit from audio.c)', () => {
+        expect(SFX_MAX_NOTES).toBe(10);
+    });
+    it('notesCap returns 400 for music, 10 for sfx', () => {
+        expect(notesCap('music')).toBe(400);
+        expect(notesCap('sfx')).toBe(10);
+    });
+    it('noteStatus uses the kind-specific cap', () => {
+        expect(noteStatus(11, 'sfx')).toBe('over');
+        expect(noteStatus(9,  'sfx')).toBe('warn'); // >=90% of 10 → 9
+        expect(noteStatus(8,  'sfx')).toBe('ok');
+        expect(noteStatus(11, 'music')).toBe('ok');
+        expect(noteStatus(400, 'music')).toBe('warn');    // 400 == cap → warn, not over
+        expect(noteStatus(401, 'music')).toBe('over');
     });
 });
