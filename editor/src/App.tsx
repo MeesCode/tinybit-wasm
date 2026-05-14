@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
-import { loadSketch, saveSketchDebounced } from './state/persist';
+import { loadSketch, saveSketchDebounced, clearSketch } from './state/persist';
 import { loadDemo } from './state/demo';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
@@ -24,6 +24,7 @@ import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
+import { ResetConfirm } from './ui/ResetConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -57,6 +58,7 @@ export function App() {
     const [isDragging, setIsDragging] = useState(false);
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
+    const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -334,6 +336,23 @@ export function App() {
         setEngineState('idle');
     }, [runtime]);
 
+    const handleReset = useCallback(() => {
+        setResetConfirmOpen(true);
+    }, []);
+
+    const handleResetCancel = useCallback(() => {
+        setResetConfirmOpen(false);
+    }, []);
+
+    const handleResetConfirm = useCallback(() => {
+        setResetConfirmOpen(false);
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        setEngineState('idle');
+        clearSketch();
+        void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
+    }, [runtime, sketch, consoleAppend]);
+
     const canPlay = useMemo(() => runtime !== null && sketch.script.trim().length > 0, [runtime, sketch.script]);
 
     if (bootError) {
@@ -355,6 +374,7 @@ export function App() {
                 canPlay={canPlay}
                 onPlay={handlePlay}
                 onStop={handleStop}
+                onReset={handleReset}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -412,6 +432,12 @@ export function App() {
                     filename={pendingUpload.filename}
                     onReplace={handleConfirmReplace}
                     onCancel={handleConfirmCancel}
+                />
+            )}
+            {resetConfirmOpen && (
+                <ResetConfirm
+                    onReset={handleResetConfirm}
+                    onCancel={handleResetCancel}
                 />
             )}
             <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
