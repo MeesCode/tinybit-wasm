@@ -9,13 +9,15 @@ export const DEMO_SCRIPT = `-- Star Catcher — TinyBit demo
 --@music
 local bgm = [[
 L:1/4
-K:C
-Q:1/4=110
-C E G c | B G E C | F A c f | e c A F |
+Q:1/4=120
+C E G c | B G E C | F A c f | e c d2 | 
 ]]
 
 --@sfx
-local catch_sfx = "c/4e/4g/4c"
+local catch_sfx = [[
+Q:1/4=150
+c/4e/4g/4c/4
+]]
 
 local ship_x = 60
 local score  = 0
