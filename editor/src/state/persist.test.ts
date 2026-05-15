@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { loadSketch, saveSketch, SKETCH_KEY, UI_KEY, loadSpriteUi, saveSpriteUi, SPRITE_UI_KEY } from './persist';
+import { loadSketch, saveSketch, SKETCH_KEY, loadSpriteUi, saveSpriteUi, SPRITE_UI_KEY } from './persist';
 import { DEFAULT_SCRIPT } from './sketchStore';
 
 beforeEach(() => localStorage.clear());
