@@ -7,11 +7,11 @@ export type EngineState = 'idle' | 'running' | 'error';
 export interface ToolbarProps {
     engineState: EngineState;
     canPlay: boolean;
-    onPlay():   void;
-    onStop():   void;
-    onClear():  void;
-    onDemo():   void;
-    onOpen():   void;
+    onPlay():    void;
+    onStop():    void;
+    onClear():   void;
+    onGallery(): void;
+    onOpen():    void;
     onDownload(): void;
     onResetEngine?(): void;
 }
@@ -64,8 +64,8 @@ export function Toolbar(p: ToolbarProps) {
             <button type="button" onClick={p.onClear} style={neutralStyle} aria-label="Clear editor">
                 🗑 Clear
             </button>
-            <button type="button" onClick={p.onDemo} style={neutralStyle} aria-label="Load demo">
-                ⭐ Demo
+            <button type="button" onClick={p.onGallery} style={neutralStyle} aria-label="Gallery">
+                🎮 Gallery
             </button>
             <button type="button" onClick={p.onOpen} style={neutralStyle} aria-label="Open">
                 📂 Open

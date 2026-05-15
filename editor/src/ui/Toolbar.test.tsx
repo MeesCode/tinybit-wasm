@@ -5,7 +5,7 @@ import { Toolbar } from './Toolbar';
 
 describe('Toolbar', () => {
     test('renders brand and four buttons', () => {
-        render(<Toolbar engineState="idle" canPlay onPlay={() => {}} onStop={() => {}} onClear={() => {}} onDemo={() => {}} onDownload={() => {}} onOpen={() => {}} />);
+        render(<Toolbar engineState="idle" canPlay onPlay={() => {}} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={() => {}} onOpen={() => {}} />);
         expect(screen.getByText(/tinybit/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /play/i })).toBeEnabled();
         expect(screen.getByRole('button', { name: /stop/i })).toBeDisabled();
@@ -14,7 +14,7 @@ describe('Toolbar', () => {
     });
 
     test('Play is disabled when canPlay is false', () => {
-        render(<Toolbar engineState="idle" canPlay={false} onPlay={() => {}} onStop={() => {}} onClear={() => {}} onDemo={() => {}} onDownload={() => {}} onOpen={() => {}} />);
+        render(<Toolbar engineState="idle" canPlay={false} onPlay={() => {}} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={() => {}} onOpen={() => {}} />);
         expect(screen.getByRole('button', { name: /play/i })).toBeDisabled();
     });
 
@@ -22,7 +22,7 @@ describe('Toolbar', () => {
         const onPlay = vi.fn();
         const onOpen = vi.fn();
         const onDownload = vi.fn();
-        render(<Toolbar engineState="idle" canPlay onPlay={onPlay} onStop={() => {}} onClear={() => {}} onDemo={() => {}} onDownload={onDownload} onOpen={onOpen} />);
+        render(<Toolbar engineState="idle" canPlay onPlay={onPlay} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={onDownload} onOpen={onOpen} />);
         await userEvent.click(screen.getByRole('button', { name: /play/i }));
         await userEvent.click(screen.getByRole('button', { name: /open/i }));
         await userEvent.click(screen.getByRole('button', { name: /download/i }));
@@ -33,7 +33,7 @@ describe('Toolbar', () => {
 
     test('shows a Crashed pill in error state with click-to-reset', async () => {
         const onReset = vi.fn();
-        render(<Toolbar engineState="error" canPlay onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} onClear={() => {}} onDemo={() => {}} onResetEngine={onReset} />);
+        render(<Toolbar engineState="error" canPlay onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} onClear={() => {}} onGallery={() => {}} onResetEngine={onReset} />);
         const pill = screen.getByText(/crashed/i);
         await userEvent.click(pill);
         expect(onReset).toHaveBeenCalledOnce();
@@ -50,6 +50,7 @@ describe('Toolbar', () => {
                 onOpen={() => {}}
                 onDownload={() => {}}
                 onClear={onClear}
+                onGallery={() => {}}
             />,
         );
         const buttons = screen.getAllByRole('button');
@@ -64,8 +65,8 @@ describe('Toolbar', () => {
         expect(onClear).toHaveBeenCalledOnce();
     });
 
-    test('renders a Demo button between Clear and Open and fires onDemo', async () => {
-        const onDemo = vi.fn();
+    test('renders a Gallery button between Clear and Open and fires onGallery', async () => {
+        const onGallery = vi.fn();
         render(
             <Toolbar
                 engineState="idle"
@@ -73,20 +74,20 @@ describe('Toolbar', () => {
                 onPlay={() => {}}
                 onStop={() => {}}
                 onClear={() => {}}
-                onDemo={onDemo}
+                onGallery={onGallery}
                 onOpen={() => {}}
                 onDownload={() => {}}
             />,
         );
         const buttons = screen.getAllByRole('button');
         const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
-        const clearIdx = labels.findIndex((l) => /clear/i.test(l));
-        const openIdx  = labels.findIndex((l) => /open/i.test(l));
-        const demoIdx  = labels.findIndex((l) => /demo/i.test(l));
-        expect(demoIdx).toBeGreaterThan(clearIdx);
-        expect(demoIdx).toBeLessThan(openIdx);
+        const clearIdx   = labels.findIndex((l) => /clear/i.test(l));
+        const openIdx    = labels.findIndex((l) => /open/i.test(l));
+        const galleryIdx = labels.findIndex((l) => /gallery/i.test(l));
+        expect(galleryIdx).toBeGreaterThan(clearIdx);
+        expect(galleryIdx).toBeLessThan(openIdx);
 
-        await userEvent.click(screen.getByRole('button', { name: /load demo/i }));
-        expect(onDemo).toHaveBeenCalledOnce();
+        await userEvent.click(screen.getByRole('button', { name: /gallery/i }));
+        expect(onGallery).toHaveBeenCalledOnce();
     });
 });
