@@ -43,7 +43,6 @@ test('clear restores the skeleton and persists across reload', async ({ page }) 
     await expect(editor).toContainText('hello, world');
     await expect(editor).not.toContainText('mutated');
 
-    // Reload — skeleton must persist (the just-saved state, not Lucky Leprechaun).
     await page.reload();
     const editorAfter = page.locator('.cm-content');
     await expect(editorAfter).toContainText('hello, world');
