@@ -1,5 +1,5 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readPngSize, rgbaToDataUrl } from './png';
+import { describe, test, expect } from 'vitest';
+import { readPngSize } from './png';
 
 function pngWithIHDR(w: number, h: number): Uint8Array {
     const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -23,41 +23,5 @@ describe('readPngSize', () => {
     test('returns null when IHDR is missing', () => {
         const bad = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
         expect(readPngSize(bad)).toBeNull();
-    });
-});
-
-describe('rgbaToDataUrl', () => {
-    // jsdom does not implement HTMLCanvasElement.prototype.getContext.
-    const stubCtx = {
-        createImageData: (w: number, h: number) => ({ data: { set: () => {} }, width: w, height: h }),
-        putImageData: () => {},
-    };
-    let getContextSpy: ReturnType<typeof vi.spyOn>;
-    let toDataUrlSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-        getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
-            .mockReturnValue(stubCtx as unknown as CanvasRenderingContext2D);
-        toDataUrlSpy = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL')
-            .mockReturnValue('data:image/png;base64,abc');
-    });
-
-    afterEach(() => {
-        getContextSpy.mockRestore();
-        toDataUrlSpy.mockRestore();
-    });
-
-    test('returns a data: URL without throwing', () => {
-        const pixels = new Uint8Array([
-            255, 0, 0, 255,   255, 0, 0, 255,
-            255, 0, 0, 255,   255, 0, 0, 255,
-        ]);
-        const url = rgbaToDataUrl(pixels, 2, 2);
-        expect(typeof url).toBe('string');
-        expect(url.startsWith('data:')).toBe(true);
-    });
-
-    test('throws when pixels length does not match dimensions', () => {
-        expect(() => rgbaToDataUrl(new Uint8Array(3), 2, 2)).toThrow(/length/i);
     });
 });

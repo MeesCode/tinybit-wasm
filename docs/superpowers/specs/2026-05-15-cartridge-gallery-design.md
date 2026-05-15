@@ -232,7 +232,7 @@ if (import.meta.hot) {
 }
 ```
 
-**Cover encoding.** The decoder yields a 128×128 RGBA `Uint8Array`. To get a `data:` URL, draw it onto an offscreen `<canvas>` via `ImageData` and call `canvas.toDataURL('image/png')`. `editor/src/lib/png.ts` today only exports `readPngSize`; we add `rgbaToDataUrl(pixels, width, height): string` there so the helper is colocated with the other PNG utilities.
+**Cover encoding.** The decoder's `tb_dec_cover_ptr` returns the cartridge's cover as **PNG-encoded bytes** (re-encoded by the WASM decoder from its internal RGBA buffer — see `src/lib.rs`, `cover_png_out`). To get a `data:` URL we base64-encode the PNG bytes directly: a small `pngBytesToDataUrl(pngBytes)` helper in `gallery.ts` does `data:image/png;base64,${btoa(...)}` with no canvas roundtrip needed.
 
 ### New: `editor/src/ui/GalleryModal.tsx`
 

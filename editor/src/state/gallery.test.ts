@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { loadGallery, resetGalleryCacheForTests, type CartridgeModules } from './gallery';
 import type { Decoder, DecodedCartridge } from '../engine/decoder';
 
@@ -34,25 +34,8 @@ function makeFetcher(bytesByUrl: Record<string, Uint8Array>): (url: string) => P
     };
 }
 
-// jsdom does not implement HTMLCanvasElement.prototype.getContext — stub it.
-const stubCtx = {
-    createImageData: (w: number, h: number) => ({ data: { set: () => {} }, width: w, height: h }),
-    putImageData: () => {},
-};
-let getContextSpy: ReturnType<typeof vi.spyOn>;
-let toDataUrlSpy: ReturnType<typeof vi.spyOn>;
-
 beforeEach(() => {
     resetGalleryCacheForTests();
-    getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
-        .mockReturnValue(stubCtx as unknown as CanvasRenderingContext2D);
-    toDataUrlSpy = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL')
-        .mockReturnValue('data:image/png;base64,abc');
-});
-
-afterEach(() => {
-    getContextSpy.mockRestore();
-    toDataUrlSpy.mockRestore();
 });
 
 describe('loadGallery', () => {
