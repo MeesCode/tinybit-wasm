@@ -181,18 +181,16 @@ export function App() {
         }
     }, [consoleAppend]);
 
-    const handleConfirmReplace = useCallback(() => {
-        const pu = pendingUpload;
-        setPendingUpload(null);
-        if (!pu || !runtime || !runtime.decoderAvailable) {
-            if (pu) consoleAppend('error', 'Decoder not available in this WASM build.');
+    const loadCartridgeBytes = useCallback((bytes: Uint8Array): void => {
+        if (!runtime || !runtime.decoderAvailable) {
+            consoleAppend('error', 'Decoder not available in this WASM build.');
             return;
         }
         frameLoopRef.current?.stop();
         runtime.tb.stop();
         runtime.tb.init();
         try {
-            const result = runtime.dec.decode(pu.bytes);
+            const result = runtime.dec.decode(bytes);
             sketch.loadCartridge({
                 title:  result.title,
                 author: result.author,
@@ -208,7 +206,14 @@ export function App() {
             if (err instanceof DecodeError) consoleAppend('error', `Decode failed (${err.code}): ${err.message}`);
             else consoleAppend('error', err instanceof Error ? err.message : String(err));
         }
-    }, [pendingUpload, runtime, sketch, consoleAppend]);
+    }, [runtime, sketch, consoleAppend]);
+
+    const handleConfirmReplace = useCallback(() => {
+        const pu = pendingUpload;
+        setPendingUpload(null);
+        if (!pu) return;
+        loadCartridgeBytes(pu.bytes);
+    }, [pendingUpload, loadCartridgeBytes]);
 
     const handleConfirmCancel = useCallback(() => {
         setPendingUpload(null);
