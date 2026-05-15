@@ -357,7 +357,11 @@ export function App() {
 
     const handleGalleryOpen = useCallback(async () => {
         setGalleryOpen(true);
-        if (galleryLoadedRef.current || !runtime || !runtime.decoderAvailable) return;
+        if (galleryLoadedRef.current) return;
+        if (!runtime || !runtime.decoderAvailable) {
+            setGalleryState({ kind: 'error', message: 'Decoder not available in this WASM build.' });
+            return;
+        }
         setGalleryState({ kind: 'loading' });
         try {
             const result: GalleryLoadResult = await loadGallery(runtime.dec);
