@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readPngSize, rgbaToDataUrl } from './png';
 
 function pngWithIHDR(w: number, h: number): Uint8Array {
@@ -27,29 +27,32 @@ describe('readPngSize', () => {
 });
 
 describe('rgbaToDataUrl', () => {
-    // jsdom does not implement HTMLCanvasElement.prototype.getContext — stub it out
-    // so we can verify the helper's plumbing without needing a real GPU context.
+    // jsdom does not implement HTMLCanvasElement.prototype.getContext.
     const stubCtx = {
-        createImageData: (w: number, h: number) => ({
-            data: { set: () => {} },
-            width: w,
-            height: h,
-        }),
+        createImageData: (w: number, h: number) => ({ data: { set: () => {} }, width: w, height: h }),
         putImageData: () => {},
     };
+    let getContextSpy: ReturnType<typeof vi.spyOn>;
+    let toDataUrlSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
+            .mockReturnValue(stubCtx as unknown as CanvasRenderingContext2D);
+        toDataUrlSpy = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+            .mockReturnValue('data:image/png;base64,abc');
+    });
+
+    afterEach(() => {
+        getContextSpy.mockRestore();
+        toDataUrlSpy.mockRestore();
+    });
 
     test('returns a data: URL without throwing', () => {
-        HTMLCanvasElement.prototype.getContext = () => stubCtx as unknown as CanvasRenderingContext2D;
-        HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,abc';
-
-        // 2×2 fully-red, opaque
         const pixels = new Uint8Array([
             255, 0, 0, 255,   255, 0, 0, 255,
             255, 0, 0, 255,   255, 0, 0, 255,
         ]);
         const url = rgbaToDataUrl(pixels, 2, 2);
-        // The real visual check lives in the gallery E2E spec. Here we just verify
-        // the helper produces a data: URL and doesn't throw.
         expect(typeof url).toBe('string');
         expect(url.startsWith('data:')).toBe(true);
     });
