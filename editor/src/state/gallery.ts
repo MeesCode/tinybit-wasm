@@ -1,5 +1,4 @@
 import type { Decoder } from '../engine/decoder';
-import { rgbaToDataUrl } from '../lib/png';
 
 export interface GalleryEntry {
     id:        string;
@@ -36,6 +35,12 @@ const defaultModules = import.meta.glob<string>(
     { query: '?url', import: 'default' },
 );
 
+function pngBytesToDataUrl(pngBytes: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < pngBytes.length; i++) binary += String.fromCharCode(pngBytes[i]);
+    return `data:image/png;base64,${btoa(binary)}`;
+}
+
 let cachePromise: Promise<GalleryLoadResult> | null = null;
 
 export function loadGallery(
@@ -62,7 +67,9 @@ async function loadGalleryImpl(
             const url = await modules[path]();
             const bytes = await fetcher(url);
             const decoded = decoder.decode(bytes);
-            const coverUrl = rgbaToDataUrl(decoded.cover, 128, 128);
+            // decoded.cover is PNG bytes (re-encoded by the decoder); convert directly
+            // to a data URL without going through an RGBA intermediate.
+            const coverUrl = pngBytesToDataUrl(decoded.cover);
             entries.push({
                 id: path,
                 filename,
