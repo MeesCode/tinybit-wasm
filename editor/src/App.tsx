@@ -3,8 +3,8 @@ import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
 import { loadSketch, saveSketch, saveSketchDebounced } from './state/persist';
-import { loadDemo } from './state/demo';
-import { SKELETON_SCRIPT } from './state/skeleton';
+import { SKELETON_SCRIPT, isUntouchedSkeleton } from './state/skeleton';
+import { loadGallery, type GalleryEntry, type GalleryLoadResult } from './state/gallery';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
@@ -26,7 +26,7 @@ import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
 import { ClearConfirm } from './ui/ClearConfirm';
-import { DemoConfirm } from './ui/DemoConfirm';
+import { GalleryModal, type GalleryModalState } from './ui/GalleryModal';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -61,7 +61,9 @@ export function App() {
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-    const [demoConfirmOpen, setDemoConfirmOpen] = useState(false);
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [galleryState, setGalleryState] = useState<GalleryModalState>({ kind: 'loading' });
+    const galleryLoadedRef = useRef(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -353,21 +355,35 @@ export function App() {
         setClearConfirmOpen(false);
     }, []);
 
-    const handleDemo = useCallback(() => {
-        setDemoConfirmOpen(true);
+    const handleGalleryOpen = useCallback(async () => {
+        setGalleryOpen(true);
+        if (galleryLoadedRef.current || !runtime || !runtime.decoderAvailable) return;
+        setGalleryState({ kind: 'loading' });
+        try {
+            const result: GalleryLoadResult = await loadGallery(runtime.dec);
+            galleryLoadedRef.current = true;
+            setGalleryState({ kind: 'ready', entries: result.entries, failures: result.failures });
+        } catch (err) {
+            setGalleryState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+        }
+    }, [runtime]);
+
+    const handleGalleryCancel = useCallback(() => {
+        setGalleryOpen(false);
     }, []);
 
-    const handleDemoCancel = useCallback(() => {
-        setDemoConfirmOpen(false);
-    }, []);
-
-    const handleDemoConfirm = useCallback(() => {
-        setDemoConfirmOpen(false);
-        frameLoopRef.current?.stop();
-        runtime?.tb.stop();
-        setEngineState('idle');
-        void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
-    }, [runtime, sketch, consoleAppend]);
+    const handleGalleryPick = useCallback((entry: GalleryEntry) => {
+        setGalleryOpen(false);
+        const current = {
+            script: sketch.script, sprite: sketch.sprite, cover: sketch.cover,
+            title:  sketch.title,  author: sketch.author,
+        };
+        if (isUntouchedSkeleton(current)) {
+            loadCartridgeBytes(entry.cartridge);
+        } else {
+            setPendingUpload({ bytes: entry.cartridge, filename: entry.filename });
+        }
+    }, [sketch, loadCartridgeBytes]);
 
     const handleClearConfirm = useCallback(() => {
         setClearConfirmOpen(false);
@@ -407,7 +423,7 @@ export function App() {
                 onPlay={handlePlay}
                 onStop={handleStop}
                 onClear={handleClear}
-                onDemo={handleDemo}
+                onGallery={handleGalleryOpen}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -473,12 +489,12 @@ export function App() {
                     onCancel={handleClearCancel}
                 />
             )}
-            {demoConfirmOpen && (
-                <DemoConfirm
-                    onLoad={handleDemoConfirm}
-                    onCancel={handleDemoCancel}
-                />
-            )}
+            <GalleryModal
+                open={galleryOpen}
+                state={galleryState}
+                onPick={handleGalleryPick}
+                onCancel={handleGalleryCancel}
+            />
             <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
         </div>
     );
