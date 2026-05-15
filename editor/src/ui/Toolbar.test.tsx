@@ -50,6 +50,7 @@ describe('Toolbar', () => {
                 onOpen={() => {}}
                 onDownload={() => {}}
                 onClear={onClear}
+                onGallery={() => {}}
             />,
         );
         const buttons = screen.getAllByRole('button');
