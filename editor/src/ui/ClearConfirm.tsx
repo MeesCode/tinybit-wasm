@@ -42,8 +42,8 @@ export function ClearConfirm({ onClear, onCancel }: ClearConfirmProps) {
             <div style={dialogStyle}>
                 <div style={titleStyle}>Clear the editor?</div>
                 <div style={bodyStyle}>
-                    This will discard your current script, sprite, cover, title, and author.
-                    Editor preferences are kept.
+                    This will discard your current cartridge and reset the editor to the
+                    hello-world skeleton. Editor preferences are kept.
                 </div>
                 <div style={actionsStyle}>
                     <button type="button" style={cancelStyle} onClick={onCancel} autoFocus>Cancel</button>

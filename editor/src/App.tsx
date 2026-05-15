@@ -4,6 +4,7 @@ import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
 import { loadSketch, saveSketch, saveSketchDebounced } from './state/persist';
 import { loadDemo } from './state/demo';
+import { SKELETON_SCRIPT } from './state/skeleton';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
@@ -79,7 +80,7 @@ export function App() {
             }
             sketch.setCover(stored.cover);
         } else {
-            void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
+            sketch.setScript(SKELETON_SCRIPT);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -373,13 +374,13 @@ export function App() {
         frameLoopRef.current?.stop();
         runtime?.tb.stop();
         setEngineState('idle');
-        sketch.setScript('');
+        sketch.setScript(SKELETON_SCRIPT);
         sketch.setTitle('');
         sketch.setAuthor('');
         sketch.setCover(null);
         sketch.clearSprite();
         saveSketch(
-            { script: '', sprite: null, cover: null, title: '', author: '' },
+            { script: SKELETON_SCRIPT, sprite: null, cover: null, title: '', author: '' },
             (msg) => consoleAppend('warn', msg),
         );
     }, [runtime, sketch, consoleAppend]);

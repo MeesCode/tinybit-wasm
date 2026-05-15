@@ -7,7 +7,7 @@ describe('ClearConfirm', () => {
     test('renders body text and two buttons', () => {
         render(<ClearConfirm onClear={() => {}} onCancel={() => {}} />);
         expect(screen.getByText(/clear the editor/i)).toBeInTheDocument();
-        expect(screen.getByText(/discard your current/i)).toBeInTheDocument();
+        expect(screen.getByText(/reset the editor to the hello-world skeleton/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
