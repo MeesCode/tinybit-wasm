@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
-import { loadSketch, saveSketchDebounced } from './state/persist';
+import { loadSketch, saveSketch, saveSketchDebounced } from './state/persist';
+import { loadDemo } from './state/demo';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
@@ -23,6 +24,8 @@ import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
+import { ClearConfirm } from './ui/ClearConfirm';
+import { DemoConfirm } from './ui/DemoConfirm';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -56,6 +59,8 @@ export function App() {
     const [isDragging, setIsDragging] = useState(false);
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
+    const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    const [demoConfirmOpen, setDemoConfirmOpen] = useState(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -73,6 +78,8 @@ export function App() {
                 });
             }
             sketch.setCover(stored.cover);
+        } else {
+            void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -183,6 +190,7 @@ export function App() {
         }
         frameLoopRef.current?.stop();
         runtime.tb.stop();
+        runtime.tb.init();
         try {
             const result = runtime.dec.decode(pu.bytes);
             sketch.loadCartridge({
@@ -331,6 +339,46 @@ export function App() {
         setEngineState('idle');
     }, [runtime]);
 
+    const handleClear = useCallback(() => {
+        setClearConfirmOpen(true);
+    }, []);
+
+    const handleClearCancel = useCallback(() => {
+        setClearConfirmOpen(false);
+    }, []);
+
+    const handleDemo = useCallback(() => {
+        setDemoConfirmOpen(true);
+    }, []);
+
+    const handleDemoCancel = useCallback(() => {
+        setDemoConfirmOpen(false);
+    }, []);
+
+    const handleDemoConfirm = useCallback(() => {
+        setDemoConfirmOpen(false);
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        setEngineState('idle');
+        void loadDemo(sketch, (msg) => consoleAppend('warn', msg));
+    }, [runtime, sketch, consoleAppend]);
+
+    const handleClearConfirm = useCallback(() => {
+        setClearConfirmOpen(false);
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        setEngineState('idle');
+        sketch.setScript('');
+        sketch.setTitle('');
+        sketch.setAuthor('');
+        sketch.setCover(null);
+        sketch.clearSprite();
+        saveSketch(
+            { script: '', sprite: null, cover: null, title: '', author: '' },
+            (msg) => consoleAppend('warn', msg),
+        );
+    }, [runtime, sketch, consoleAppend]);
+
     const canPlay = useMemo(() => runtime !== null && sketch.script.trim().length > 0, [runtime, sketch.script]);
 
     if (bootError) {
@@ -352,6 +400,8 @@ export function App() {
                 canPlay={canPlay}
                 onPlay={handlePlay}
                 onStop={handleStop}
+                onClear={handleClear}
+                onDemo={handleDemo}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -409,6 +459,18 @@ export function App() {
                     filename={pendingUpload.filename}
                     onReplace={handleConfirmReplace}
                     onCancel={handleConfirmCancel}
+                />
+            )}
+            {clearConfirmOpen && (
+                <ClearConfirm
+                    onClear={handleClearConfirm}
+                    onCancel={handleClearCancel}
+                />
+            )}
+            {demoConfirmOpen && (
+                <DemoConfirm
+                    onLoad={handleDemoConfirm}
+                    onCancel={handleDemoCancel}
                 />
             )}
             <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />

@@ -1,6 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 test('score tab: insert new score and round-trip to script', async ({ page }) => {
+    // Seed an empty sketch so the demo-on-first-boot branch is NOT taken.
+    await page.addInitScript(() => {
+        localStorage.setItem('tinybit-editor/sketch/v1', JSON.stringify({
+            script: '',
+            title: '',
+            author: '',
+            sprite_b64: null,
+            cover_b64: null,
+        }));
+    });
     await page.goto('/');
     await page.waitForFunction(() => (window as any).useSketchStore !== undefined);
 
@@ -11,14 +21,14 @@ test('score tab: insert new score and round-trip to script', async ({ page }) =>
     await expect(page.getByText(/no scores yet/i)).toBeVisible();
 
     // Insert a new score.
-    await page.getByRole('button', { name: /\+ new score/i }).click();
+    await page.getByRole('button', { name: /\+ new music/i }).click();
 
     // A chip for score_1 should appear.
-    await expect(page.getByRole('button', { name: /^score_1$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^music_1$/ })).toBeVisible();
 
     // The script should now contain the snippet.
     const script: string = await page.evaluate(() => (window as any).useSketchStore.getState().script);
-    expect(script).toContain('--@score: score_1');
+    expect(script).toContain('--@music: music_1');
     expect(script).toContain('[[\nL:1/4\nK:C\nC D E F |\n]]');
 
     // Type into the ABC editor.
