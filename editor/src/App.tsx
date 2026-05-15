@@ -190,6 +190,7 @@ export function App() {
         }
         frameLoopRef.current?.stop();
         runtime.tb.stop();
+        runtime.tb.init();
         try {
             const result = runtime.dec.decode(pu.bytes);
             sketch.loadCartridge({
