@@ -1,7 +1,9 @@
 // Generates editor/public/demo-sprite.png — a 128×128 RGBA spritesheet with
-// two 8×8 sprites used by the Star Catcher demo cartridge:
-//   - tile (0,0): white ship silhouette
-//   - tile (1,0): yellow 4-point star
+// two 8×8 sprites used by the Lucky Leprechaun demo cartridge:
+//   - tile (0,0): leprechaun (green hat + orange beard + green body)
+//   - tile (1,0): gold coin (yellow disc with darker rim)
+// Each sprite is composed by layering one paint() call per color; cells with
+// '.' are left fully transparent so the engine's blend() skips them.
 // All other pixels are fully transparent (alpha 0), which the engine's
 // blend() skips during sprite() blits.
 //
@@ -30,29 +32,86 @@ function paint(tileX, tileY, rows, rgba) {
     }
 }
 
-// Sprite 0: white ship pointing up.
+// Sprite 0: leprechaun.
+// Green hat (top + brim) — drawn first so the face/beard overlay it cleanly.
 paint(0, 0, [
     '........',
-    '...##...',
-    '...##...',
-    '..####..',
-    '..####..',
     '.######.',
     '.######.',
     '########',
-], [255, 255, 255, 255]);
+    '........',
+    '........',
+    '........',
+    '........',
+], [40, 150, 60, 255]);
+// Peach face.
+paint(0, 0, [
+    '........',
+    '........',
+    '........',
+    '........',
+    '.######.',
+    '........',
+    '........',
+    '........',
+], [255, 210, 170, 255]);
+// Orange beard.
+paint(0, 0, [
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '.######.',
+    '........',
+    '........',
+], [220, 130, 40, 255]);
+// Green vest.
+paint(0, 0, [
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '.######.',
+    '........',
+], [40, 150, 60, 255]);
+// Black boots at the corners.
+paint(0, 0, [
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '........',
+    '##....##',
+], [30, 30, 30, 255]);
 
-// Sprite 1: yellow 4-point star.
+// Sprite 1: gold coin.
+// Dark gold rim.
+paint(1, 0, [
+    '..####..',
+    '.#....#.',
+    '#......#',
+    '#......#',
+    '#......#',
+    '#......#',
+    '.#....#.',
+    '..####..',
+], [180, 130, 0, 255]);
+// Bright yellow center.
 paint(1, 0, [
     '........',
-    '...#....',
-    '..###...',
-    '.##.##..',
-    '###.###.',
-    '.##.##..',
-    '..###...',
-    '...#....',
-], [255, 255, 0, 255]);
+    '..####..',
+    '.######.',
+    '.######.',
+    '.######.',
+    '.######.',
+    '..####..',
+    '........',
+], [255, 220, 0, 255]);
 
 // Pack scanlines with PNG filter byte 0 (None) at the start of each row.
 const raw = new Uint8Array(H * (1 + W * 4));

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Demo button reloads the Star Catcher demo over an existing edited sketch', async ({ page }) => {
+test('Demo button reloads the Lucky Leprechaun demo over an existing edited sketch', async ({ page }) => {
     // Seed an empty sketch so we don't start on the demo.
     await page.addInitScript(() => {
         localStorage.setItem('tinybit-editor/sketch/v1', JSON.stringify({
@@ -15,7 +15,7 @@ test('Demo button reloads the Star Catcher demo over an existing edited sketch',
 
     const editor = page.locator('.cm-content');
     await expect(editor).toContainText('existing edits');
-    await expect(editor).not.toContainText('Star Catcher');
+    await expect(editor).not.toContainText('Lucky Leprechaun');
 
     // Cancel keeps the existing edits.
     await page.getByRole('button', { name: /load demo/i }).click();
@@ -26,6 +26,6 @@ test('Demo button reloads the Star Catcher demo over an existing edited sketch',
     // Confirm replaces with the demo.
     await page.getByRole('button', { name: /load demo/i }).click();
     await page.getByRole('dialog', { name: /load demo/i }).getByRole('button', { name: /^load demo$/i }).click();
-    await expect(editor).toContainText('Star Catcher');
+    await expect(editor).toContainText('Lucky Leprechaun');
     await expect(editor).not.toContainText('existing edits');
 });

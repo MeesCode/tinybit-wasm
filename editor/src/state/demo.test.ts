@@ -20,7 +20,7 @@ describe('loadDemo', () => {
         expect(DEMO_SCRIPT.length).toBeGreaterThan(0);
         expect(DEMO_SCRIPT).toContain('--@music');
         expect(DEMO_SCRIPT).toContain('--@sfx');
-        expect(DEMO_TITLE).toBe('Star Catcher');
+        expect(DEMO_TITLE).toBe('Lucky Leprechaun');
         expect(DEMO_AUTHOR).toBe('TinyBit');
     });
 
