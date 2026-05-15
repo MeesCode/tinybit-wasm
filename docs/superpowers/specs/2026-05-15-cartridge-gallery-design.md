@@ -399,9 +399,11 @@ References in `Toolbar.test.tsx`, `App.test.tsx`, `e2e/smoke.spec.ts` that asser
 - **Encoder placeholder for empty cover/sprite at Play time.** The skeleton has no cover or sprite. Existing `getPlaceholderCover` / `getPlaceholderSprite` already handle this — verified in `App.tsx:271-291`. No change needed.
 - **localStorage migration.** Users who already have a saved Lucky Leprechaun sketch in localStorage will hydrate that on next visit — no upgrade hook needed, and nothing depends on the script's content. They can `Clear` to get the skeleton.
 
-## Open questions
+## Seed content
 
-- **Seed cartridges in the initial PR.** The user has saved the Lucky Leprechaun cartridge externally; they may want to drop it (and possibly one or two others) into `editor/src/cartridges/` as part of this work, or land the feature with an empty folder. The design supports either — the implementer should ask before committing.
+The initial PR ships with an **empty** `editor/src/cartridges/` folder (just `.gitkeep`). Example cartridges are added in follow-up commits as separate, reviewable units. The gallery's empty-state message is the first thing users see if they open the modal on a fresh clone — which is fine, since the message points to exactly the folder they need to populate.
+
+The E2E gallery spec accounts for this: the "cards render" case is asserted via a test fixture (a `.tb.png` copied into `editor/src/cartridges/` only at test time, then cleaned up) rather than by depending on real seed files.
 
 ## Out of scope (future work)
 
