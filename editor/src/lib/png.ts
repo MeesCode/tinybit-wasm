@@ -10,3 +10,19 @@ export function readPngSize(bytes: Uint8Array): PngSize | null {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return { width: dv.getUint32(IHDR_OFFSET, false), height: dv.getUint32(IHDR_OFFSET + 4, false) };
 }
+
+export function rgbaToDataUrl(pixels: Uint8Array, width: number, height: number): string {
+    const expected = width * height * 4;
+    if (pixels.length !== expected) {
+        throw new Error(`rgbaToDataUrl: pixels length ${pixels.length} does not match ${width}×${height}×4 = ${expected}`);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('rgbaToDataUrl: 2D canvas context unavailable');
+    const img = ctx.createImageData(width, height);
+    img.data.set(pixels);
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL('image/png');
+}

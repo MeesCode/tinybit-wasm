@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { readPngSize } from './png';
+import { readPngSize, rgbaToDataUrl } from './png';
 
 function pngWithIHDR(w: number, h: number): Uint8Array {
     const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -23,5 +23,38 @@ describe('readPngSize', () => {
     test('returns null when IHDR is missing', () => {
         const bad = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
         expect(readPngSize(bad)).toBeNull();
+    });
+});
+
+describe('rgbaToDataUrl', () => {
+    // jsdom does not implement HTMLCanvasElement.prototype.getContext — stub it out
+    // so we can verify the helper's plumbing without needing a real GPU context.
+    const stubCtx = {
+        createImageData: (w: number, h: number) => ({
+            data: { set: () => {} },
+            width: w,
+            height: h,
+        }),
+        putImageData: () => {},
+    };
+
+    test('returns a data: URL without throwing', () => {
+        HTMLCanvasElement.prototype.getContext = () => stubCtx as unknown as CanvasRenderingContext2D;
+        HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,abc';
+
+        // 2×2 fully-red, opaque
+        const pixels = new Uint8Array([
+            255, 0, 0, 255,   255, 0, 0, 255,
+            255, 0, 0, 255,   255, 0, 0, 255,
+        ]);
+        const url = rgbaToDataUrl(pixels, 2, 2);
+        // The real visual check lives in the gallery E2E spec. Here we just verify
+        // the helper produces a data: URL and doesn't throw.
+        expect(typeof url).toBe('string');
+        expect(url.startsWith('data:')).toBe(true);
+    });
+
+    test('throws when pixels length does not match dimensions', () => {
+        expect(() => rgbaToDataUrl(new Uint8Array(3), 2, 2)).toThrow(/length/i);
     });
 });
