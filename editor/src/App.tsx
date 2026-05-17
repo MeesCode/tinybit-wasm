@@ -476,7 +476,7 @@ export function App() {
                         {activeTab === 'cartridge' && <CartridgeTab />}
                     </EditorPane>
                 }
-                rightTop={<CanvasPane ref={canvasRef} />}
+                rightTop={<CanvasPane ref={canvasRef} runtime={runtime} engineState={engineState} />}
                 rightBottom={<ConsolePane />}
             />
             {isDragging && <div style={dropOverlayStyle}>Drop .tb.png to open</div>}
