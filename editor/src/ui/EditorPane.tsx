@@ -1,4 +1,7 @@
-import { type ReactNode, type CSSProperties } from 'react';
+import { useMemo, type ReactNode, type CSSProperties } from 'react';
+import { useSketchStore } from '../state/sketchStore';
+import { SCRIPT_MAX } from '../engine/limits';
+import { MeterFooter } from './MeterFooter';
 
 export type EditorTab = 'script' | 'alt' | 'cartridge' | 'score';
 
@@ -38,7 +41,12 @@ function tabStyle(active: boolean): CSSProperties {
 
 const bodyStyle: CSSProperties = { flex: 1, minHeight: 0, overflow: 'hidden' };
 
+const encoder = new TextEncoder();
+
 export function EditorPane({ active, onChange, children }: EditorPaneProps) {
+    const script = useSketchStore((s) => s.script);
+    const scriptBytes = useMemo(() => encoder.encode(script).length, [script]);
+
     return (
         <div style={wrapStyle}>
             <div role="tablist" style={tabsStyle}>
@@ -58,6 +66,13 @@ export function EditorPane({ active, onChange, children }: EditorPaneProps) {
                 ))}
             </div>
             <div role="tabpanel" style={bodyStyle}>{children}</div>
+            <MeterFooter
+                label="Script"
+                used={scriptBytes}
+                cap={SCRIPT_MAX}
+                mode="light"
+                overflow={scriptBytes > SCRIPT_MAX}
+            />
         </div>
     );
 }
