@@ -9,8 +9,9 @@ use std::time::Instant;
 
 use bindings::{
     tinybit_audio_queue_cb, tinybit_feed_cartridge, tinybit_gamecount_cb, tinybit_gameload_cb,
-    tinybit_get_ticks_ms_cb, tinybit_init, tinybit_log_cb, tinybit_loop, tinybit_poll_input_cb,
-    tinybit_render_cb, tinybit_start, tinybit_stop, TinyBitMemory, TB_BUTTON_COUNT,
+    tinybit_get_ticks_ms_cb, tinybit_init, tinybit_log_cb, tinybit_loop,
+    tinybit_lua_memory_used, tinybit_poll_input_cb, tinybit_render_cb, tinybit_start,
+    tinybit_stop, TinyBitMemory, TB_BUTTON_COUNT,
 };
 
 use encoder::header::HeaderOpts;
@@ -330,6 +331,22 @@ pub extern "C" fn tb_audio_ptr() -> *const i16 {
         }
     });
     ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_mem_used() -> u32 {
+    let mut used: u32 = 0;
+    STATE.with(|cell| {
+        if cell.borrow().is_some() {
+            used = unsafe { tinybit_lua_memory_used() } as u32;
+        }
+    });
+    used
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_mem_capacity() -> u32 {
+    bindings::TB_MEM_LUA_STATE_SIZE as u32
 }
 
 #[no_mangle]

@@ -91,6 +91,7 @@ extern "C" {
     pub fn tinybit_loop();
     pub fn tinybit_stop();
     pub fn tinybit_sleep(ms: c_int);
+    pub fn tinybit_lua_memory_used() -> usize;
 
     pub fn tinybit_log_cb(cb: Option<LogCb>);
     pub fn tinybit_get_ticks_ms_cb(cb: Option<GetTicksMsCb>);
