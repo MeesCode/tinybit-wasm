@@ -18,7 +18,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
                 name: '_draw',
                 signature: 'function _draw() ... end',
                 description: 'Called by the engine every frame. Define this in your script to draw your scene.',
-                example: 'function _draw()\n  cls(0x0000)\n  sprite(0, 0, 8, 8, 60, 60, 8, 8)\nend',
+                example: 'function _draw()\n  cls(0x0000)\n  sprite(0, 60, 60)\nend',
             },
         ],
     },
@@ -43,7 +43,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
         title: 'Drawing',
         items: [
             { name: 'cls',          signature: 'cls()',                                                              description: 'Clear the display.' },
-            { name: 'sprite',       signature: 'sprite(sx, sy, sw, sh, tx, ty, tw, th[, rotation])',                 description: 'Blit a region of the spritesheet to the display.' },
+            { name: 'sprite',       signature: 'sprite(n, x, y) | sprite(sx, sy, sw, sh, tx, ty, tw, th[, rotation])', description: 'Blit a spritesheet region to the display. 3-arg form draws the n-th 8x8 cell at (x, y); the 128x128 sheet has 16 cells per row so n = row * 16 + col, in [0, 255]. Long form copies an arbitrary source region to a target region with optional rotation.' },
             { name: 'duplicate',    signature: 'duplicate(sx, sy, sw, sh, tx, ty, tw, th[, rotation])',              description: 'Copy a region of the display back to the display (useful for trails / effects).' },
             { name: 'line',         signature: 'line(x1, y1, x2, y2)',                                               description: 'Stroke a line. Uses the current stroke color and width.' },
             { name: 'rect',         signature: 'rect(x, y, w, h)',                                                   description: 'Stroke + fill a rectangle. Uses current stroke + fill colors.' },
