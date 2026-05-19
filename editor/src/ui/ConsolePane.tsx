@@ -49,7 +49,7 @@ export function ConsolePane() {
             </div>
             <div ref={listRef} style={listStyle} onScroll={onScroll}>
                 {visible.map((l) => (
-                    <div key={l.id}>
+                    <div key={l.id} style={{ whiteSpace: 'pre-wrap' }}>
                         <span style={{ color: SOURCE_COLOR[l.source], marginRight: 6 }}>{l.source}</span>
                         {l.text}
                     </div>
