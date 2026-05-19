@@ -8,7 +8,8 @@ import { loadGallery, type GalleryEntry, type GalleryLoadResult } from './state/
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
-import { formatLuaError, parseLuaError } from './engine/luaError';
+import { formatLuaError, parseLuaError, type LuaError } from './engine/luaError';
+import type { LuaErrorMarkerData } from './editor/luaErrorGutter';
 import { EncodeError } from './engine/encoder';
 import { DecodeError } from './engine/decoder';
 import { readPngSize } from './lib/png';
@@ -62,6 +63,7 @@ export function App() {
     const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
     const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
     const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    const [luaErrorMarker, setLuaErrorMarker] = useState<LuaErrorMarkerData | null>(null);
     const [galleryOpen, setGalleryOpen] = useState(false);
     const [galleryState, setGalleryState] = useState<GalleryModalState>({ kind: 'loading' });
     const galleryLoadedRef = useRef(false);
@@ -118,7 +120,10 @@ export function App() {
                 const fl = makeFrameLoop(rt.tb);
                 fl.onStateChange(setEngineState);
                 fl.onError((msg) => consoleAppend('error', msg));
-                fl.onLuaError((err) => consoleAppend('error', formatLuaError(err)));
+                fl.onLuaError((err: LuaError) => {
+                    consoleAppend('error', formatLuaError(err));
+                    if (err.line !== null) setLuaErrorMarker({ line: err.line, message: err.message });
+                });
                 frameLoopRef.current = fl;
                 rt.spritesheet.setRunningPredicate(() => fl.state() === 'running');
             })
@@ -309,6 +314,7 @@ export function App() {
         rt.preview.stop();
         const bytes = await buildCartridge();
         if (!bytes) return;
+        setLuaErrorMarker(null);
         try {
             rt.tb.init();
             rt.tb.feedCartridge(bytes);
@@ -320,8 +326,13 @@ export function App() {
             await fl.start(canvas);
         } catch (err) {
             const startErr = rt.tb.takeLuaError();
-            if (startErr) consoleAppend('error', formatLuaError(parseLuaError(startErr.message, startErr.traceback)));
-            else consoleAppend('error', err instanceof Error ? err.message : String(err));
+            if (startErr) {
+                const parsed = parseLuaError(startErr.message, startErr.traceback);
+                consoleAppend('error', formatLuaError(parsed));
+                if (parsed.line !== null) setLuaErrorMarker({ line: parsed.line, message: parsed.message });
+            } else {
+                consoleAppend('error', err instanceof Error ? err.message : String(err));
+            }
         }
     }, [runtime, buildCartridge, consoleAppend]);
 
@@ -453,6 +464,7 @@ export function App() {
                                     value={sketch.script}
                                     onChange={sketch.setScript}
                                     extraExtensions={[scoreHoverExtension]}
+                                    luaErrorMarker={luaErrorMarker}
                                 />
                                 <HelpButton
                                     onClick={() => setScriptHelpOpen(true)}

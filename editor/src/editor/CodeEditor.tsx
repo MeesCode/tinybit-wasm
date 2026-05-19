@@ -5,6 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { bracketMatching, indentOnInput, foldGutter, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { luaLang } from './luaSupport';
+import { luaErrorGutter, setLuaErrorMarkerEffect, type LuaErrorMarkerData } from './luaErrorGutter';
 
 const bubblegum = HighlightStyle.define([
     { tag: t.keyword,  color: '#ED225D', fontWeight: '600' },
@@ -30,9 +31,10 @@ export interface CodeEditorProps {
     value: string;
     onChange(v: string): void;
     extraExtensions?: Extension[];
+    luaErrorMarker?: LuaErrorMarkerData | null;
 }
 
-export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, extraExtensions, luaErrorMarker }: CodeEditorProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
     const onChangeRef = useRef(onChange);
@@ -51,6 +53,7 @@ export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps
                 indentOnInput(),
                 bracketMatching(),
                 luaLang(),
+                luaErrorGutter(),
                 syntaxHighlighting(bubblegum),
                 editorTheme,
                 EditorState.allowMultipleSelections.of(true),
@@ -76,6 +79,12 @@ export function CodeEditor({ value, onChange, extraExtensions }: CodeEditorProps
             view.dispatch({ changes: { from: 0, to: current.length, insert: value } });
         }
     }, [value]);
+
+    useEffect(() => {
+        const view = viewRef.current;
+        if (!view) return;
+        view.dispatch({ effects: setLuaErrorMarkerEffect.of(luaErrorMarker ?? null) });
+    }, [luaErrorMarker]);
 
     return <div ref={hostRef} style={{ height: '100%', overflow: 'hidden' }} />;
 }
