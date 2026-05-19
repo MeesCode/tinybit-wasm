@@ -10,8 +10,8 @@ use std::time::Instant;
 use bindings::{
     tinybit_audio_queue_cb, tinybit_error_cb, tinybit_feed_cartridge, tinybit_gamecount_cb,
     tinybit_gameload_cb, tinybit_get_ticks_ms_cb, tinybit_init, tinybit_log_cb, tinybit_loop,
-    tinybit_poll_input_cb, tinybit_render_cb, tinybit_start, tinybit_stop, TinyBitMemory,
-    TB_BUTTON_COUNT,
+    tinybit_lua_memory_used, tinybit_poll_input_cb, tinybit_render_cb, tinybit_start,
+    tinybit_stop, TinyBitMemory, TB_BUTTON_COUNT,
 };
 
 use encoder::header::HeaderOpts;
@@ -420,6 +420,22 @@ pub extern "C" fn tb_audio_ptr() -> *const i16 {
 }
 
 #[no_mangle]
+pub extern "C" fn tb_lua_mem_used() -> u32 {
+    let mut used: u32 = 0;
+    STATE.with(|cell| {
+        if cell.borrow().is_some() {
+            used = unsafe { tinybit_lua_memory_used() } as u32;
+        }
+    });
+    used
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_mem_capacity() -> u32 {
+    bindings::TB_MEM_LUA_STATE_SIZE as u32
+}
+
+#[no_mangle]
 pub extern "C" fn tb_spritesheet_ptr() -> *mut u8 {
     let mut ptr: *mut u8 = core::ptr::null_mut();
     STATE.with(|cell| {
@@ -784,4 +800,110 @@ pub extern "C" fn tb_dec_error_len() -> u32 {
     let mut n: u32 = 0;
     DEC_STATE.with(|cell| { if let Some(s) = cell.borrow().as_ref() { n = s.error_msg.len() as u32; }});
     n
+}
+
+// ── Preview FFI ─────────────────────────────────────────────────────────────
+//
+// Used by the in-editor Score tab to audition a single ABC string through the
+// engine without building or loading a cartridge. Reuses the existing audio
+// worklet path (audio_buffer + tb_audio_ptr). The script Lua VM is unaffected.
+
+const PREVIEW_BUF_CAP: usize = 32 * 1024;
+
+struct PreviewState {
+    buf: Vec<u8>, // capacity = PREVIEW_BUF_CAP + 1 (room for trailing NUL)
+}
+
+impl PreviewState {
+    fn new() -> Self {
+        Self { buf: vec![0; PREVIEW_BUF_CAP + 1] }
+    }
+}
+
+thread_local! {
+    static PREVIEW_STATE: RefCell<Option<PreviewState>> = const { RefCell::new(None) };
+}
+
+fn preview_ensure_init() {
+    PREVIEW_STATE.with(|cell| {
+        if cell.borrow().is_none() {
+            *cell.borrow_mut() = Some(PreviewState::new());
+        }
+    });
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_ptr() -> *mut u8 {
+    preview_ensure_init();
+    let mut ptr: *mut u8 = core::ptr::null_mut();
+    PREVIEW_STATE.with(|cell| {
+        if let Some(state) = cell.borrow_mut().as_mut() {
+            ptr = state.buf.as_mut_ptr();
+        }
+    });
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_cap() -> u32 {
+    PREVIEW_BUF_CAP as u32
+}
+
+fn preview_play(channel: c_int, len: u32, repeat: bool) -> i32 {
+    let len = len as usize;
+    if len > PREVIEW_BUF_CAP {
+        return -3; // oversized
+    }
+    preview_ensure_init();
+    let mut result: i32 = -1;
+    PREVIEW_STATE.with(|cell| {
+        let mut borrow = cell.borrow_mut();
+        let Some(state) = borrow.as_mut() else { return; };
+        // UTF-8 validate the prefix.
+        if core::str::from_utf8(&state.buf[..len]).is_err() {
+            result = -4;
+            return;
+        }
+        // Append trailing NUL so it's a valid C string.
+        state.buf[len] = 0;
+        // Each preview is a self-contained audition: clear both channels
+        // first so leftover state from a prior game cartridge or a previous
+        // preview can't bleed in. audio_load_abc only resets the target
+        // channel, so without this the other channel keeps playing.
+        unsafe { bindings::audio_stop_all(); }
+        let rc = unsafe {
+            bindings::audio_load_abc(
+                channel,
+                state.buf.as_ptr() as *const core::ffi::c_char,
+                bindings::TB_WAVE_SINE,
+                repeat,
+            )
+        };
+        // audio_load_abc returns 0 on success, negative on parser failure.
+        result = rc;
+    });
+    result
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_music_play(len: u32) -> i32 {
+    preview_play(bindings::TB_CHANNEL_MUSIC, len, true)
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_sfx_play(len: u32) -> i32 {
+    preview_play(bindings::TB_CHANNEL_SFX, len, false)
+}
+
+#[no_mangle]
+pub extern "C" fn tb_preview_stop() {
+    unsafe { bindings::audio_stop_all(); }
+}
+
+// Drive one frame of audio synthesis. Used by the Score tab's preview pump
+// when the main game frame loop isn't running (otherwise process_audio is
+// invoked from inside tinybit_loop). Safe to call any number of times.
+#[no_mangle]
+pub extern "C" fn tb_preview_tick() {
+    unsafe { bindings::process_audio(); }
 }

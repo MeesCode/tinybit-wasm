@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { useSpriteEditorStore } from '../state/spriteEditorStore';
 import { hexToRgba, rgbaToHex, unpackRgba8, packRgba8 } from './color';
+import { ColorPicker } from './ColorPicker';
 
 const wrap: CSSProperties = { display: 'flex', gap: 12, padding: 12, background: '#F6F6F8', borderTop: '1px solid #ECECF0', alignItems: 'center' };
+const swatchAnchor: CSSProperties = { position: 'relative' };
 const swatch = (rgba: number): CSSProperties => ({
     width: 22, height: 22, borderRadius: 4, border: '1px solid #ECECF0',
     background: rgbaToHex(rgba),
     cursor: 'pointer',
 });
+const swatchButton = (rgba: number): CSSProperties => ({
+    ...swatch(rgba),
+    width: 36, height: 36, padding: 0,
+});
 
 export function ColorPanel() {
     const { color, recent, setColor, setColorTransient } = useSpriteEditorStore();
     const [draft, setDraft] = useState(rgbaToHex(color));
+    const [pickerOpen, setPickerOpen] = useState(false);
     const focusedRef = useRef(false);
 
     // Keep the hex input in sync with the store when the user isn't actively typing
@@ -30,7 +37,19 @@ export function ColorPanel() {
 
     return (
         <div style={wrap} role="region" aria-label="Colour panel">
-            <div style={{ ...swatch(color), width: 36, height: 36 }} aria-label="Current colour" title="Current colour" />
+            <div style={swatchAnchor}>
+                <button
+                    type="button"
+                    data-color-swatch=""
+                    aria-label="Current colour"
+                    aria-haspopup="dialog"
+                    aria-expanded={pickerOpen}
+                    title="Current colour — click to open picker"
+                    onClick={() => setPickerOpen((o) => !o)}
+                    style={swatchButton(color)}
+                />
+                {pickerOpen && <ColorPicker onClose={() => setPickerOpen(false)} />}
+            </div>
             <label style={{ display: 'flex', flexDirection: 'column', fontSize: 11, color: '#6B6B76' }}>
                 Hex
                 <input

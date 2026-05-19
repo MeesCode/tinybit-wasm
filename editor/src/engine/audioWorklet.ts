@@ -1,4 +1,4 @@
-export const AUDIO_WORKLET_SOURCE = `
+const AUDIO_WORKLET_SOURCE = `
 class TBProcessor extends AudioWorkletProcessor {
     constructor() {
         super();

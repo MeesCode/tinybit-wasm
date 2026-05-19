@@ -19,6 +19,8 @@ export interface TinybitExports {
     tb_lua_error_trace_ptr(): number;
     tb_lua_error_trace_len(): number;
     tb_lua_error_clear(): void;
+    tb_lua_mem_used?(): number;      // optional: older wasm builds may not have this
+    tb_lua_mem_capacity?(): number;  // optional
 }
 
 export interface Tinybit {
@@ -31,10 +33,12 @@ export interface Tinybit {
     displayView(): Uint16Array;
     audioView(): Int16Array;
     takeLuaError(): { message: string; traceback: string | null } | null;
+    luaMemUsed?(): number;
+    luaMemCapacity?(): number;
 }
 
 export function makeTinybit(ex: TinybitExports): Tinybit {
-    return {
+    const tb: Tinybit = {
         init: () => ex.tb_init(),
         feedCartridge(bytes) {
             const feedPtr = ex.tb_feed_buffer_ptr();
@@ -71,6 +75,13 @@ export function makeTinybit(ex: TinybitExports): Tinybit {
             return { message, traceback };
         },
     };
+    if (typeof ex.tb_lua_mem_used === 'function') {
+        tb.luaMemUsed = () => ex.tb_lua_mem_used!();
+    }
+    if (typeof ex.tb_lua_mem_capacity === 'function') {
+        tb.luaMemCapacity = () => ex.tb_lua_mem_capacity!();
+    }
+    return tb;
 }
 
 export const BUTTONS: Record<string, number> = {

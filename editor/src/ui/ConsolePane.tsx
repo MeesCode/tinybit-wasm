@@ -23,12 +23,18 @@ export function ConsolePane() {
     const { lines, filters, setFilter, clear } = useConsoleStore();
     const visible = useMemo(() => lines.filter((l) => filters.has(l.source)), [lines, filters]);
     const listRef = useRef<HTMLDivElement | null>(null);
+    const pinnedRef = useRef(true);
+
+    const onScroll = () => {
+        const el = listRef.current;
+        if (!el) return;
+        pinnedRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+    };
 
     useEffect(() => {
         const el = listRef.current;
         if (!el) return;
-        const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
-        if (nearBottom) el.scrollTop = el.scrollHeight;
+        if (pinnedRef.current) el.scrollTop = el.scrollHeight;
     }, [visible.length]);
 
     return (
@@ -41,7 +47,7 @@ export function ConsolePane() {
                 ))}
                 <button type="button" aria-label="Clear" style={clearStyle} onClick={clear}>Clear</button>
             </div>
-            <div ref={listRef} style={listStyle}>
+            <div ref={listRef} style={listStyle} onScroll={onScroll}>
                 {visible.map((l) => (
                     <div key={l.id}>
                         <span style={{ color: SOURCE_COLOR[l.source], marginRight: 6 }}>{l.source}</span>

@@ -92,6 +92,7 @@ extern "C" {
     pub fn tinybit_loop();
     pub fn tinybit_stop();
     pub fn tinybit_sleep(ms: c_int);
+    pub fn tinybit_lua_memory_used() -> usize;
 
     pub fn tinybit_log_cb(cb: Option<LogCb>);
     pub fn tinybit_error_cb(cb: Option<ErrorCb>);
@@ -101,4 +102,20 @@ extern "C" {
     pub fn tinybit_audio_queue_cb(cb: Option<AudioQueueCb>);
     pub fn tinybit_gamecount_cb(cb: Option<GamecountCb>);
     pub fn tinybit_gameload_cb(cb: Option<GameloadCb>);
+
+    // --- audio.h: ABC playback + channel control ---
+    pub fn audio_load_abc(
+        channel_num: c_int,
+        abc_string: *const c_char,
+        waveform: c_int,
+        repeat: bool,
+    ) -> c_int;
+    pub fn audio_stop_all();
+    pub fn process_audio();
 }
+
+// --- audio.h constants ---
+pub const TB_CHANNEL_MUSIC: c_int = 0;
+pub const TB_CHANNEL_SFX:   c_int = 1;
+// WAVEFORM enum values from audio.h (SINE first → 0).
+pub const TB_WAVE_SINE: c_int = 0;

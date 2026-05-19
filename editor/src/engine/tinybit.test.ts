@@ -64,3 +64,31 @@ describe('makeTinybit', () => {
         expect(v.length).toBe(128 * 128);
     });
 });
+
+describe('makeTinybit lua memory wrappers', () => {
+    test('luaMemUsed() forwards to tb_lua_mem_used', () => {
+        const ex = mockExports() as ReturnType<typeof mockExports> & {
+            tb_lua_mem_used: ReturnType<typeof vi.fn>;
+        };
+        ex.tb_lua_mem_used = vi.fn(() => 12_345);
+        const tb = makeTinybit(ex);
+        expect(tb.luaMemUsed?.()).toBe(12_345);
+        expect(ex.tb_lua_mem_used).toHaveBeenCalledTimes(1);
+    });
+
+    test('luaMemCapacity() forwards to tb_lua_mem_capacity', () => {
+        const ex = mockExports() as ReturnType<typeof mockExports> & {
+            tb_lua_mem_capacity: ReturnType<typeof vi.fn>;
+        };
+        ex.tb_lua_mem_capacity = vi.fn(() => 262_144);
+        const tb = makeTinybit(ex);
+        expect(tb.luaMemCapacity?.()).toBe(262_144);
+    });
+
+    test('luaMemUsed/Capacity are undefined when exports are missing', () => {
+        const ex = mockExports();   // no tb_lua_mem_* fields
+        const tb = makeTinybit(ex);
+        expect(tb.luaMemUsed).toBeUndefined();
+        expect(tb.luaMemCapacity).toBeUndefined();
+    });
+});

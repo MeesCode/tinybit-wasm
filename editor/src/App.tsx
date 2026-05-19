@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { useSketchStore } from './state/sketchStore';
 import { useConsoleStore } from './state/consoleStore';
 import { useSpriteEditorStore } from './state/spriteEditorStore';
-import { loadSketch, saveSketchDebounced } from './state/persist';
+import { loadSketch, saveSketch, saveSketchDebounced } from './state/persist';
+import { SKELETON_SCRIPT, isUntouchedSkeleton } from './state/skeleton';
+import { loadGallery, type GalleryEntry, type GalleryLoadResult } from './state/gallery';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
@@ -16,10 +18,16 @@ import { EditorPane, type EditorTab } from './ui/EditorPane';
 import { CodeEditor } from './editor/CodeEditor';
 import { CartridgeTab } from './ui/CartridgeTab';
 import { AltEditorTab } from './ui/AltEditorTab';
+import { ScoreTab } from './score/ScoreTab';
+import { scoreHoverTooltip } from './score/scoreHoverTooltip';
+import { HelpButton } from './info/HelpButton';
+import { ScriptApiModal } from './info/ScriptApiModal';
 import { CanvasPane, type CanvasHandle } from './ui/CanvasPane';
 import { ConsolePane } from './ui/ConsolePane';
 import { AppSplit } from './ui/PanelSplitter';
 import { UploadConfirm } from './ui/UploadConfirm';
+import { ClearConfirm } from './ui/ClearConfirm';
+import { GalleryModal, type GalleryModalState } from './ui/GalleryModal';
 
 const appStyle = { display: 'flex', flexDirection: 'column' as const, height: '100%' };
 
@@ -51,6 +59,12 @@ export function App() {
     const [bootError, setBootError] = useState<string | null>(null);
     const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+    const [scriptHelpOpen, setScriptHelpOpen] = useState(false);
+    const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [galleryState, setGalleryState] = useState<GalleryModalState>({ kind: 'loading' });
+    const galleryLoadedRef = useRef(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
@@ -68,6 +82,8 @@ export function App() {
                 });
             }
             sketch.setCover(stored.cover);
+        } else {
+            sketch.setScript(SKELETON_SCRIPT);
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -143,6 +159,14 @@ export function App() {
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, [runtime]);
 
+    const scoreHoverExtension = useMemo(
+        () => scoreHoverTooltip((id) => {
+            setSelectedLinkId(id);
+            setActiveTab('score');
+        }),
+        [],
+    );
+
     // Upload pipeline ────────────────────────────────────────────────────────
 
     const acceptFile = useCallback(async (file: File) => {
@@ -162,15 +186,16 @@ export function App() {
         }
     }, [consoleAppend]);
 
-    const handleConfirmReplace = useCallback(() => {
-        const pu = pendingUpload;
-        setPendingUpload(null);
-        if (!pu || !runtime || !runtime.decoderAvailable) {
-            if (pu) consoleAppend('error', 'Decoder not available in this WASM build.');
+    const loadCartridgeBytes = useCallback((bytes: Uint8Array): void => {
+        if (!runtime || !runtime.decoderAvailable) {
+            consoleAppend('error', 'Decoder not available in this WASM build.');
             return;
         }
+        frameLoopRef.current?.stop();
+        runtime.tb.stop();
+        runtime.tb.init();
         try {
-            const result = runtime.dec.decode(pu.bytes);
+            const result = runtime.dec.decode(bytes);
             sketch.loadCartridge({
                 title:  result.title,
                 author: result.author,
@@ -186,7 +211,14 @@ export function App() {
             if (err instanceof DecodeError) consoleAppend('error', `Decode failed (${err.code}): ${err.message}`);
             else consoleAppend('error', err instanceof Error ? err.message : String(err));
         }
-    }, [pendingUpload, runtime, sketch, consoleAppend]);
+    }, [runtime, sketch, consoleAppend]);
+
+    const handleConfirmReplace = useCallback(() => {
+        const pu = pendingUpload;
+        setPendingUpload(null);
+        if (!pu) return;
+        loadCartridgeBytes(pu.bytes);
+    }, [pendingUpload, loadCartridgeBytes]);
 
     const handleConfirmCancel = useCallback(() => {
         setPendingUpload(null);
@@ -272,6 +304,9 @@ export function App() {
         const rt = runtime; const fl = frameLoopRef.current; const canvas = canvasRef.current?.getCanvas();
         if (!rt || !fl || !canvas) return;
         fl.stop();
+        // Tear down any in-flight Score-tab preview so it can't race the game
+        // for the engine's audio channels.
+        rt.preview.stop();
         const bytes = await buildCartridge();
         if (!bytes) return;
         try {
@@ -316,6 +351,64 @@ export function App() {
         setEngineState('idle');
     }, [runtime]);
 
+    const handleClear = useCallback(() => {
+        setClearConfirmOpen(true);
+    }, []);
+
+    const handleClearCancel = useCallback(() => {
+        setClearConfirmOpen(false);
+    }, []);
+
+    const handleGalleryOpen = useCallback(async () => {
+        setGalleryOpen(true);
+        if (galleryLoadedRef.current) return;
+        if (!runtime || !runtime.decoderAvailable) {
+            setGalleryState({ kind: 'error', message: 'Decoder not available in this WASM build.' });
+            return;
+        }
+        setGalleryState({ kind: 'loading' });
+        try {
+            const result: GalleryLoadResult = await loadGallery(runtime.dec);
+            galleryLoadedRef.current = true;
+            setGalleryState({ kind: 'ready', entries: result.entries, failures: result.failures });
+        } catch (err) {
+            setGalleryState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+        }
+    }, [runtime]);
+
+    const handleGalleryCancel = useCallback(() => {
+        setGalleryOpen(false);
+    }, []);
+
+    const handleGalleryPick = useCallback((entry: GalleryEntry) => {
+        setGalleryOpen(false);
+        const current = {
+            script: sketch.script, sprite: sketch.sprite, cover: sketch.cover,
+            title:  sketch.title,  author: sketch.author,
+        };
+        if (isUntouchedSkeleton(current)) {
+            loadCartridgeBytes(entry.cartridge);
+        } else {
+            setPendingUpload({ bytes: entry.cartridge, filename: entry.filename });
+        }
+    }, [sketch, loadCartridgeBytes]);
+
+    const handleClearConfirm = useCallback(() => {
+        setClearConfirmOpen(false);
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        setEngineState('idle');
+        sketch.setScript(SKELETON_SCRIPT);
+        sketch.setTitle('');
+        sketch.setAuthor('');
+        sketch.setCover(null);
+        sketch.clearSprite();
+        saveSketch(
+            { script: SKELETON_SCRIPT, sprite: null, cover: null, title: '', author: '' },
+            (msg) => consoleAppend('warn', msg),
+        );
+    }, [runtime, sketch, consoleAppend]);
+
     const canPlay = useMemo(() => runtime !== null && sketch.script.trim().length > 0, [runtime, sketch.script]);
 
     if (bootError) {
@@ -337,6 +430,8 @@ export function App() {
                 canPlay={canPlay}
                 onPlay={handlePlay}
                 onStop={handleStop}
+                onClear={handleClear}
+                onGallery={handleGalleryOpen}
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
@@ -352,12 +447,40 @@ export function App() {
             <AppSplit
                 left={
                     <EditorPane active={activeTab} onChange={setActiveTab}>
-                        {activeTab === 'script' && <CodeEditor value={sketch.script} onChange={sketch.setScript} />}
+                        {activeTab === 'script' && (
+                            <div style={{ position: 'relative', height: '100%' }}>
+                                <CodeEditor
+                                    value={sketch.script}
+                                    onChange={sketch.setScript}
+                                    extraExtensions={[scoreHoverExtension]}
+                                />
+                                <HelpButton
+                                    onClick={() => setScriptHelpOpen(true)}
+                                    aria-label="Script API help"
+                                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 5 }}
+                                />
+                            </div>
+                        )}
                         {activeTab === 'alt' && <AltEditorTab />}
+                        {activeTab === 'score' && runtime && (
+                            <ScoreTab
+                                preview={runtime.preview}
+                                previewAvailable={runtime.previewAvailable}
+                                selectedLinkId={selectedLinkId ?? undefined}
+                                onSelectLink={setSelectedLinkId}
+                                onBeforePreview={() => {
+                                    // Mutex with the game: tear down any running cartridge
+                                    // so the engine's audio channels aren't being driven
+                                    // from two pumps at once.
+                                    frameLoopRef.current?.stop();
+                                    runtime.tb.stop();
+                                }}
+                            />
+                        )}
                         {activeTab === 'cartridge' && <CartridgeTab />}
                     </EditorPane>
                 }
-                rightTop={<CanvasPane ref={canvasRef} />}
+                rightTop={<CanvasPane ref={canvasRef} runtime={runtime} engineState={engineState} />}
                 rightBottom={<ConsolePane />}
             />
             {isDragging && <div style={dropOverlayStyle}>Drop .tb.png to open</div>}
@@ -368,6 +491,19 @@ export function App() {
                     onCancel={handleConfirmCancel}
                 />
             )}
+            {clearConfirmOpen && (
+                <ClearConfirm
+                    onClear={handleClearConfirm}
+                    onCancel={handleClearCancel}
+                />
+            )}
+            <GalleryModal
+                open={galleryOpen}
+                state={galleryState}
+                onPick={handleGalleryPick}
+                onCancel={handleGalleryCancel}
+            />
+            <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
         </div>
     );
 }

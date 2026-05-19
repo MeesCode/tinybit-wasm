@@ -10,3 +10,4 @@ export function readPngSize(bytes: Uint8Array): PngSize | null {
     const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     return { width: dv.getUint32(IHDR_OFFSET, false), height: dv.getUint32(IHDR_OFFSET + 4, false) };
 }
+

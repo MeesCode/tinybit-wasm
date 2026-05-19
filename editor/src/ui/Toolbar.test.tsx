@@ -5,7 +5,7 @@ import { Toolbar } from './Toolbar';
 
 describe('Toolbar', () => {
     test('renders brand and four buttons', () => {
-        render(<Toolbar engineState="idle" canPlay onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} />);
+        render(<Toolbar engineState="idle" canPlay onPlay={() => {}} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={() => {}} onOpen={() => {}} />);
         expect(screen.getByText(/tinybit/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /play/i })).toBeEnabled();
         expect(screen.getByRole('button', { name: /stop/i })).toBeDisabled();
@@ -14,7 +14,7 @@ describe('Toolbar', () => {
     });
 
     test('Play is disabled when canPlay is false', () => {
-        render(<Toolbar engineState="idle" canPlay={false} onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} />);
+        render(<Toolbar engineState="idle" canPlay={false} onPlay={() => {}} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={() => {}} onOpen={() => {}} />);
         expect(screen.getByRole('button', { name: /play/i })).toBeDisabled();
     });
 
@@ -22,7 +22,7 @@ describe('Toolbar', () => {
         const onPlay = vi.fn();
         const onOpen = vi.fn();
         const onDownload = vi.fn();
-        render(<Toolbar engineState="idle" canPlay onPlay={onPlay} onStop={() => {}} onDownload={onDownload} onOpen={onOpen} />);
+        render(<Toolbar engineState="idle" canPlay onPlay={onPlay} onStop={() => {}} onClear={() => {}} onGallery={() => {}} onDownload={onDownload} onOpen={onOpen} />);
         await userEvent.click(screen.getByRole('button', { name: /play/i }));
         await userEvent.click(screen.getByRole('button', { name: /open/i }));
         await userEvent.click(screen.getByRole('button', { name: /download/i }));
@@ -33,9 +33,61 @@ describe('Toolbar', () => {
 
     test('shows a Crashed pill in error state with click-to-reset', async () => {
         const onReset = vi.fn();
-        render(<Toolbar engineState="error" canPlay onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} onResetEngine={onReset} />);
+        render(<Toolbar engineState="error" canPlay onPlay={() => {}} onStop={() => {}} onDownload={() => {}} onOpen={() => {}} onClear={() => {}} onGallery={() => {}} onResetEngine={onReset} />);
         const pill = screen.getByText(/crashed/i);
         await userEvent.click(pill);
         expect(onReset).toHaveBeenCalledOnce();
+    });
+
+    test('renders a Clear button between Stop and Open and fires onClear', async () => {
+        const onClear = vi.fn();
+        render(
+            <Toolbar
+                engineState="idle"
+                canPlay={true}
+                onPlay={() => {}}
+                onStop={() => {}}
+                onOpen={() => {}}
+                onDownload={() => {}}
+                onClear={onClear}
+                onGallery={() => {}}
+            />,
+        );
+        const buttons = screen.getAllByRole('button');
+        const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
+        const stopIdx  = labels.findIndex((l) => /stop/i.test(l));
+        const openIdx  = labels.findIndex((l) => /open/i.test(l));
+        const clearIdx = labels.findIndex((l) => /clear/i.test(l));
+        expect(clearIdx).toBeGreaterThan(stopIdx);
+        expect(clearIdx).toBeLessThan(openIdx);
+
+        await userEvent.click(screen.getByRole('button', { name: /clear editor/i }));
+        expect(onClear).toHaveBeenCalledOnce();
+    });
+
+    test('renders a Gallery button between Clear and Open and fires onGallery', async () => {
+        const onGallery = vi.fn();
+        render(
+            <Toolbar
+                engineState="idle"
+                canPlay={true}
+                onPlay={() => {}}
+                onStop={() => {}}
+                onClear={() => {}}
+                onGallery={onGallery}
+                onOpen={() => {}}
+                onDownload={() => {}}
+            />,
+        );
+        const buttons = screen.getAllByRole('button');
+        const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
+        const clearIdx   = labels.findIndex((l) => /clear/i.test(l));
+        const openIdx    = labels.findIndex((l) => /open/i.test(l));
+        const galleryIdx = labels.findIndex((l) => /gallery/i.test(l));
+        expect(galleryIdx).toBeGreaterThan(clearIdx);
+        expect(galleryIdx).toBeLessThan(openIdx);
+
+        await userEvent.click(screen.getByRole('button', { name: /gallery/i }));
+        expect(onGallery).toHaveBeenCalledOnce();
     });
 });
