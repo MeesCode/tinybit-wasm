@@ -8,9 +8,10 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use bindings::{
-    tinybit_audio_queue_cb, tinybit_feed_cartridge, tinybit_gamecount_cb, tinybit_gameload_cb,
-    tinybit_get_ticks_ms_cb, tinybit_init, tinybit_log_cb, tinybit_loop, tinybit_poll_input_cb,
-    tinybit_render_cb, tinybit_start, tinybit_stop, TinyBitMemory, TB_BUTTON_COUNT,
+    tinybit_audio_queue_cb, tinybit_error_cb, tinybit_feed_cartridge, tinybit_gamecount_cb,
+    tinybit_gameload_cb, tinybit_get_ticks_ms_cb, tinybit_init, tinybit_log_cb, tinybit_loop,
+    tinybit_poll_input_cb, tinybit_render_cb, tinybit_start, tinybit_stop, TinyBitMemory,
+    TB_BUTTON_COUNT,
 };
 
 use encoder::header::HeaderOpts;
@@ -168,11 +169,15 @@ fn store_dec_error(state: &mut DecoderState, err: &DecError) {
 }
 
 const FEED_BUF_SIZE: usize = 256;
+const LUA_ERROR_MSG_CAP:   usize = 4096;
+const LUA_ERROR_TRACE_CAP: usize = 16 * 1024;
 
 struct TinyBitState {
     memory: Box<TinyBitMemory>,
     feed_buf: [u8; FEED_BUF_SIZE],
     started: bool,
+    lua_error_msg:   Vec<u8>,
+    lua_error_trace: Vec<u8>,
 }
 
 impl TinyBitState {
@@ -181,6 +186,8 @@ impl TinyBitState {
             memory: Box::new(unsafe { core::mem::zeroed() }),
             feed_buf: [0; FEED_BUF_SIZE],
             started: false,
+            lua_error_msg:   Vec::with_capacity(LUA_ERROR_MSG_CAP),
+            lua_error_trace: Vec::with_capacity(LUA_ERROR_TRACE_CAP),
         }
     }
 }
@@ -200,6 +207,7 @@ pub extern "C" fn tb_init() {
         unsafe {
             tinybit_init(state.memory.as_mut() as *mut TinyBitMemory);
             tinybit_log_cb(Some(log_cb));
+            tinybit_error_cb(Some(error_cb));
             tinybit_get_ticks_ms_cb(Some(get_ticks_ms_cb));
             tinybit_render_cb(Some(noop_cb));
             tinybit_poll_input_cb(Some(noop_cb));
@@ -221,6 +229,25 @@ unsafe extern "C" fn log_cb(msg: *const c_char) {
         return;
     }
     libc::write(2, bytes.as_ptr() as *const _, bytes.len());
+}
+
+unsafe extern "C" fn error_cb(message: *const c_char, traceback: *const c_char) {
+    STATE.with(|cell| {
+        let mut borrow = cell.borrow_mut();
+        let Some(state) = borrow.as_mut() else { return };
+        state.lua_error_msg.clear();
+        state.lua_error_trace.clear();
+        if !message.is_null() {
+            let bytes = core::ffi::CStr::from_ptr(message).to_bytes();
+            let take = bytes.len().min(LUA_ERROR_MSG_CAP);
+            state.lua_error_msg.extend_from_slice(&bytes[..take]);
+        }
+        if !traceback.is_null() {
+            let bytes = core::ffi::CStr::from_ptr(traceback).to_bytes();
+            let take = bytes.len().min(LUA_ERROR_TRACE_CAP);
+            state.lua_error_trace.extend_from_slice(&bytes[..take]);
+        }
+    });
 }
 
 unsafe extern "C" fn get_ticks_ms_cb() -> c_int {
@@ -265,10 +292,15 @@ pub extern "C" fn tb_feed_cartridge(len: u32) -> u32 {
 
 #[no_mangle]
 pub extern "C" fn tb_start() -> u32 {
-    let mut ok = false;
+    // Check state exists, then drop the borrow before calling into C.
+    // tinybit_start() may invoke error_cb, which needs its own borrow_mut().
+    let has_state = STATE.with(|cell| cell.borrow().is_some());
+    if !has_state {
+        return 0;
+    }
+    let ok = unsafe { tinybit_start() };
     STATE.with(|cell| {
         if let Some(state) = cell.borrow_mut().as_mut() {
-            ok = unsafe { tinybit_start() };
             state.started = ok;
         }
     });
@@ -289,11 +321,66 @@ pub extern "C" fn tb_stop() {
 
 #[no_mangle]
 pub extern "C" fn tb_loop_once() {
+    // Check started, then drop the borrow before calling into C.
+    // tinybit_loop() may invoke error_cb, which needs its own borrow_mut().
+    let should_run = STATE.with(|cell| {
+        cell.borrow().as_ref().map_or(false, |s| s.started)
+    });
+    if should_run {
+        unsafe { tinybit_loop() };
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_error_msg_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
     STATE.with(|cell| {
         if let Some(state) = cell.borrow().as_ref() {
-            if state.started {
-                unsafe { tinybit_loop() };
-            }
+            ptr = state.lua_error_msg.as_ptr();
+        }
+    });
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_error_msg_len() -> u32 {
+    let mut len: u32 = 0;
+    STATE.with(|cell| {
+        if let Some(state) = cell.borrow().as_ref() {
+            len = state.lua_error_msg.len() as u32;
+        }
+    });
+    len
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_error_trace_ptr() -> *const u8 {
+    let mut ptr: *const u8 = core::ptr::null();
+    STATE.with(|cell| {
+        if let Some(state) = cell.borrow().as_ref() {
+            ptr = state.lua_error_trace.as_ptr();
+        }
+    });
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_error_trace_len() -> u32 {
+    let mut len: u32 = 0;
+    STATE.with(|cell| {
+        if let Some(state) = cell.borrow().as_ref() {
+            len = state.lua_error_trace.len() as u32;
+        }
+    });
+    len
+}
+
+#[no_mangle]
+pub extern "C" fn tb_lua_error_clear() {
+    STATE.with(|cell| {
+        if let Some(state) = cell.borrow_mut().as_mut() {
+            state.lua_error_msg.clear();
+            state.lua_error_trace.clear();
         }
     });
 }

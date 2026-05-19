@@ -74,6 +74,7 @@ const _: () = {
 // --- Callback function pointer types ---------------------------------------
 
 pub type LogCb = unsafe extern "C" fn(msg: *const c_char);
+pub type ErrorCb = unsafe extern "C" fn(message: *const c_char, traceback: *const c_char);
 pub type GetTicksMsCb = unsafe extern "C" fn() -> c_int;
 pub type RenderCb = unsafe extern "C" fn();
 pub type PollInputCb = unsafe extern "C" fn();
@@ -93,6 +94,7 @@ extern "C" {
     pub fn tinybit_sleep(ms: c_int);
 
     pub fn tinybit_log_cb(cb: Option<LogCb>);
+    pub fn tinybit_error_cb(cb: Option<ErrorCb>);
     pub fn tinybit_get_ticks_ms_cb(cb: Option<GetTicksMsCb>);
     pub fn tinybit_render_cb(cb: Option<RenderCb>);
     pub fn tinybit_poll_input_cb(cb: Option<PollInputCb>);
