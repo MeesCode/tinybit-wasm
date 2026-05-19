@@ -9,7 +9,7 @@ import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
 import { formatLuaError, parseLuaError, type LuaError } from './engine/luaError';
-import type { LuaErrorMarkerData } from './editor/luaErrorGutter';
+import type { LuaErrorMarkerData } from './editor/luaErrorHighlight';
 import { EncodeError } from './engine/encoder';
 import { DecodeError } from './engine/decoder';
 import { readPngSize } from './lib/png';

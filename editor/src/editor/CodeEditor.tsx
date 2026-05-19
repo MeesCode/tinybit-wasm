@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { bracketMatching, indentOnInput, foldGutter, syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { luaLang } from './luaSupport';
-import { luaErrorGutter, setLuaErrorMarkerEffect, type LuaErrorMarkerData } from './luaErrorGutter';
+import { luaErrorHighlight, setLuaErrorMarkerEffect, type LuaErrorMarkerData } from './luaErrorHighlight';
 
 const bubblegum = HighlightStyle.define([
     { tag: t.keyword,  color: '#ED225D', fontWeight: '600' },
@@ -53,7 +53,7 @@ export function CodeEditor({ value, onChange, extraExtensions, luaErrorMarker }:
                 indentOnInput(),
                 bracketMatching(),
                 luaLang(),
-                luaErrorGutter(),
+                luaErrorHighlight(),
                 syntaxHighlighting(bubblegum),
                 editorTheme,
                 EditorState.allowMultipleSelections.of(true),

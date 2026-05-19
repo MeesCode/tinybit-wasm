@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { luaErrorGutter, luaErrorMarkerField, setLuaErrorMarkerEffect } from './luaErrorGutter';
+import { luaErrorHighlight, luaErrorMarkerField, setLuaErrorMarkerEffect } from './luaErrorHighlight';
 
 function decoCountFor(state: EditorState): number {
     let n = 0;
@@ -14,11 +14,11 @@ function decoCountFor(state: EditorState): number {
     return n;
 }
 
-describe('luaErrorGutter', () => {
+describe('luaErrorHighlight', () => {
     it('starts with no marker', () => {
         const state = EditorState.create({
             doc: 'line 1\nline 2\nline 3',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         expect(state.field(luaErrorMarkerField)).toBeNull();
     });
@@ -26,7 +26,7 @@ describe('luaErrorGutter', () => {
     it('stores the marker when the effect fires', () => {
         const initial = EditorState.create({
             doc: 'line 1\nline 2\nline 3',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         const tr = initial.update({
             effects: setLuaErrorMarkerEffect.of({ line: 2, message: 'boom' }),
@@ -37,7 +37,7 @@ describe('luaErrorGutter', () => {
     it('clears the marker when the effect fires with null', () => {
         const initial = EditorState.create({
             doc: 'x',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         const set = initial.update({
             effects: setLuaErrorMarkerEffect.of({ line: 1, message: 'oops' }),
@@ -50,7 +50,7 @@ describe('luaErrorGutter', () => {
     it('preserves the marker across unrelated transactions', () => {
         const initial = EditorState.create({
             doc: 'hello',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         const set = initial.update({
             effects: setLuaErrorMarkerEffect.of({ line: 1, message: 'boom' }),
@@ -62,7 +62,7 @@ describe('luaErrorGutter', () => {
     it('adds a line decoration at the error line and removes it on clear', () => {
         const initial = EditorState.create({
             doc: 'a\nb\nc',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         expect(decoCountFor(initial)).toBe(0);
 
@@ -78,7 +78,7 @@ describe('luaErrorGutter', () => {
     it('drops the line decoration when the marker line is past the doc end', () => {
         const initial = EditorState.create({
             doc: 'only one line',
-            extensions: [luaErrorGutter()],
+            extensions: [luaErrorHighlight()],
         });
         const set = initial.update({
             effects: setLuaErrorMarkerEffect.of({ line: 99, message: 'out of range' }),
