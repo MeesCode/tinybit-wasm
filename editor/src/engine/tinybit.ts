@@ -14,6 +14,11 @@ export interface TinybitExports {
     tb_display_ptr(): number;
     tb_spritesheet_ptr(): number;
     tb_audio_ptr(): number;
+    tb_lua_error_msg_ptr(): number;
+    tb_lua_error_msg_len(): number;
+    tb_lua_error_trace_ptr(): number;
+    tb_lua_error_trace_len(): number;
+    tb_lua_error_clear(): void;
 }
 
 export interface Tinybit {
@@ -25,6 +30,7 @@ export interface Tinybit {
     setButton(idx: number, pressed: boolean): void;
     displayView(): Uint16Array;
     audioView(): Int16Array;
+    takeLuaError(): { message: string; traceback: string | null } | null;
 }
 
 export function makeTinybit(ex: TinybitExports): Tinybit {
@@ -49,6 +55,21 @@ export function makeTinybit(ex: TinybitExports): Tinybit {
         setButton: (idx, pressed) => ex.tb_set_button(idx, pressed ? 1 : 0),
         displayView: () => new Uint16Array(ex.memory.buffer, ex.tb_display_ptr(), SCREEN_PIXELS),
         audioView:   () => new Int16Array(ex.memory.buffer, ex.tb_audio_ptr(), AUDIO_FRAME_SAMPLES),
+        takeLuaError() {
+            const mlen = ex.tb_lua_error_msg_len();
+            if (mlen === 0) return null;
+            const message = new TextDecoder().decode(
+                new Uint8Array(ex.memory.buffer, ex.tb_lua_error_msg_ptr(), mlen),
+            );
+            const tlen = ex.tb_lua_error_trace_len();
+            const traceback = tlen > 0
+                ? new TextDecoder().decode(
+                    new Uint8Array(ex.memory.buffer, ex.tb_lua_error_trace_ptr(), tlen),
+                )
+                : null;
+            ex.tb_lua_error_clear();
+            return { message, traceback };
+        },
     };
 }
 

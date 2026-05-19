@@ -6,6 +6,7 @@ import { loadSketch, saveSketchDebounced } from './state/persist';
 import { getRuntime, type Runtime } from './engine/runtime';
 import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/frameLoop';
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
+import { formatLuaError, parseLuaError } from './engine/luaError';
 import { EncodeError } from './engine/encoder';
 import { DecodeError } from './engine/decoder';
 import { readPngSize } from './lib/png';
@@ -101,6 +102,7 @@ export function App() {
                 const fl = makeFrameLoop(rt.tb);
                 fl.onStateChange(setEngineState);
                 fl.onError((msg) => consoleAppend('error', msg));
+                fl.onLuaError((err) => consoleAppend('error', formatLuaError(err)));
                 frameLoopRef.current = fl;
                 rt.spritesheet.setRunningPredicate(() => fl.state() === 'running');
             })
@@ -282,7 +284,9 @@ export function App() {
             rt.tb.start();
             await fl.start(canvas);
         } catch (err) {
-            consoleAppend('error', err instanceof Error ? err.message : String(err));
+            const startErr = rt.tb.takeLuaError();
+            if (startErr) consoleAppend('error', formatLuaError(parseLuaError(startErr.message, startErr.traceback)));
+            else consoleAppend('error', err instanceof Error ? err.message : String(err));
         }
     }, [runtime, buildCartridge, consoleAppend]);
 

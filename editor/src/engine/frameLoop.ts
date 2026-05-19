@@ -1,5 +1,6 @@
 import type { Tinybit } from './tinybit';
 import { attachAudioWorklet } from './audioWorklet';
+import { parseLuaError, type LuaError } from './luaError';
 
 const SCREEN_W = 128;
 const SCREEN_H = 128;
@@ -13,6 +14,7 @@ export interface FrameLoop {
     state(): FrameLoopState;
     onStateChange(cb: (s: FrameLoopState) => void): () => void;
     onError(cb: (msg: string) => void): () => void;
+    onLuaError(cb: (err: LuaError) => void): () => void;
 }
 
 export function makeFrameLoop(tb: Tinybit): FrameLoop {
@@ -24,6 +26,7 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
     let workletNode: AudioWorkletNode | null = null;
     const stateCbs = new Set<(s: FrameLoopState) => void>();
     const errCbs = new Set<(m: string) => void>();
+    const luaErrCbs = new Set<(e: LuaError) => void>();
     const setState = (s: FrameLoopState) => { state = s; stateCbs.forEach((cb) => cb(s)); };
 
     function blit(canvas: HTMLCanvasElement) {
@@ -53,6 +56,11 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
         if (state !== 'running') return;
         try {
             tb.loopOnce();
+            const raw = tb.takeLuaError();
+            if (raw) {
+                const parsed = parseLuaError(raw.message, raw.traceback);
+                luaErrCbs.forEach((cb) => cb(parsed));
+            }
             blit(canvas);
             pumpAudio();
         } catch (err) {
@@ -90,5 +98,6 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
         state: () => state,
         onStateChange(cb) { stateCbs.add(cb); return () => stateCbs.delete(cb); },
         onError(cb)       { errCbs.add(cb);   return () => errCbs.delete(cb); },
+        onLuaError(cb)    { luaErrCbs.add(cb); return () => luaErrCbs.delete(cb); },
     };
 }

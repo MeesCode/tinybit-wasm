@@ -15,6 +15,11 @@ function mockExports() {
         tb_display_ptr: vi.fn(() => 2048),
         tb_spritesheet_ptr: vi.fn(() => 8192),
         tb_audio_ptr: vi.fn(() => 4096),
+        tb_lua_error_msg_ptr: vi.fn(() => 0),
+        tb_lua_error_msg_len: vi.fn(() => 0),
+        tb_lua_error_trace_ptr: vi.fn(() => 0),
+        tb_lua_error_trace_len: vi.fn(() => 0),
+        tb_lua_error_clear: vi.fn(),
     };
 }
 
