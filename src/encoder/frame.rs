@@ -116,10 +116,8 @@ pub fn draw_default_frame(canvas: &mut [u8; CART_RGBA_LEN]) {
     fill_rect(canvas, 40, 24, 176, 30, COLOR_PLATE);
     stroke_rect(canvas, 40, 24, 176, 30, 2, COLOR_BODY_EDGE);
 
-    // 6. Screen well border (4 px, inside 56, 60, 144, 136) and the 1-px inner highlight.
-    // Draw as a stroke so the body fill shows through the interior (the caller
-    // composites the cover image over the body afterwards).
-    stroke_rect(canvas, 56, 60, 144, 136, 4, COLOR_WELL);
+    // 6. Screen well (56, 60, 144, 136) and the 1-px inner highlight.
+    fill_rect(canvas, 56, 60, 144, 136, COLOR_WELL);
     stroke_rect(canvas, 60, 62, 136, 132, 1, COLOR_INNER);
 
     // 7. Pin row — 17 pins, x ∈ {30, 42, …, 222}, step 12, w=6, h=12, y=222.
@@ -236,9 +234,9 @@ mod tests {
         assert_eq!(arr[p],     0x0d, "expected background at corner");
         assert_eq!(arr[p + 1], 0x16);
         assert_eq!(arr[p + 2], 0x12);
-        // A pixel well inside the body — (100, 100) is far from any corner mask
-        // or sub-region — should be the body fill #1d4a3a.
-        let q = (100 * CART_W + 100) * 4;
+        // A pixel between the well (ends y=196) and the pin row (starts y=222) —
+        // this strip is body-fill only.
+        let q = (200 * CART_W + 100) * 4;
         assert_eq!(arr[q],     0x1d);
         assert_eq!(arr[q + 1], 0x4a);
         assert_eq!(arr[q + 2], 0x3a);
