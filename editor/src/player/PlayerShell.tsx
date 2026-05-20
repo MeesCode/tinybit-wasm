@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type Ref } from 'react';
+import { FaArrowRotateLeft, FaXmark } from 'react-icons/fa6';
 import { shellLayout, PLAYER_BUTTONS, PLAYER_BUTTON_IDX, type PlayerButton } from './shellLayout';
 import { usePointerButton } from './usePointerButton';
 
@@ -46,6 +47,9 @@ const topButtonStyle: CSSProperties = {
     fontSize: 13,
     fontWeight: 600,
     cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
 };
 
 const contentAreaStyle: CSSProperties = {
@@ -118,7 +122,7 @@ export function PlayerShell({ canvasRef, onSetButton, onExit, onReset }: PlayerS
                     onClick={onReset}
                     style={topButtonStyle}
                 >
-                    ↻ Reset
+                    <FaArrowRotateLeft size={14} color="#ED225D" aria-hidden /> Reset
                 </button>
                 <button
                     type="button"
@@ -126,7 +130,7 @@ export function PlayerShell({ canvasRef, onSetButton, onExit, onReset }: PlayerS
                     onClick={onExit}
                     style={topButtonStyle}
                 >
-                    ✕ Close
+                    <FaXmark size={14} color="#ED225D" aria-hidden /> Close
                 </button>
             </div>
             <div style={contentAreaStyle}>

@@ -92,7 +92,7 @@ describe('Toolbar', () => {
         expect(onOpenPlayer).toHaveBeenCalledOnce();
     });
 
-    test('renders Player and Gallery buttons between Clear and Open', async () => {
+    test('renders Player and Gallery after Open/Download, with Player before Gallery', async () => {
         const onGallery = vi.fn();
         render(
             <Toolbar
@@ -109,13 +109,13 @@ describe('Toolbar', () => {
         );
         const buttons = screen.getAllByRole('button');
         const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
-        const clearIdx   = labels.findIndex((l) => /clear/i.test(l));
-        const playerIdx  = labels.findIndex((l) => /open in player/i.test(l));
-        const galleryIdx = labels.findIndex((l) => /gallery/i.test(l));
-        const openIdx    = labels.findIndex((l) => /^open$/i.test(l));
-        expect(clearIdx).toBeLessThan(playerIdx);
+        const openIdx     = labels.findIndex((l) => /^open$/i.test(l));
+        const downloadIdx = labels.findIndex((l) => /download/i.test(l));
+        const playerIdx   = labels.findIndex((l) => /open in player/i.test(l));
+        const galleryIdx  = labels.findIndex((l) => /gallery/i.test(l));
+        expect(openIdx).toBeLessThan(playerIdx);
+        expect(downloadIdx).toBeLessThan(playerIdx);
         expect(playerIdx).toBeLessThan(galleryIdx);
-        expect(galleryIdx).toBeLessThan(openIdx);
 
         await userEvent.click(screen.getByRole('button', { name: /gallery/i }));
         expect(onGallery).toHaveBeenCalledOnce();

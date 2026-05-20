@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { FaStop, FaTrashCan, FaMobileScreenButton, FaGamepad, FaFolderOpen } from 'react-icons/fa6';
 import { PlayButton } from './PlayButton';
 import { DownloadButton } from './DownloadButton';
 
@@ -42,10 +43,19 @@ const neutralStyle: CSSProperties = {
     background: '#F1F1F4',
     color: '#181820',
     border: '1px solid #ECECF0',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+};
+
+const rightGroupStyle: CSSProperties = {
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
 };
 
 const pillStyle: CSSProperties = {
-    marginLeft: 'auto',
     padding: '4px 10px',
     borderRadius: 999,
     fontSize: 12,
@@ -60,32 +70,34 @@ export function Toolbar(p: ToolbarProps) {
             <span style={brandStyle}>tinybit</span>
             <PlayButton running={running} disabled={!p.canPlay} onClick={p.onPlay} />
             <button type="button" onClick={p.onStop} disabled={!running} style={{ ...neutralStyle, opacity: running ? 1 : 0.4 }} aria-label="Stop">
-                ■ Stop
+                <FaStop size={12} color="#ED225D" aria-hidden /> Stop
             </button>
             <button type="button" onClick={p.onClear} style={neutralStyle} aria-label="Clear editor">
-                🗑 Clear
-            </button>
-            {p.onOpenPlayer && (
-                <button type="button" onClick={p.onOpenPlayer} style={neutralStyle} aria-label="Open in player">
-                    📱 Player
-                </button>
-            )}
-            <button type="button" onClick={p.onGallery} style={neutralStyle} aria-label="Gallery">
-                🎮 Gallery
+                <FaTrashCan size={12} color="#ED225D" aria-hidden /> Clear
             </button>
             <button type="button" onClick={p.onOpen} style={neutralStyle} aria-label="Open">
-                📂 Open
+                <FaFolderOpen size={12} color="#ED225D" aria-hidden /> Open
             </button>
             <DownloadButton disabled={!p.canPlay} onClick={p.onDownload} />
-            <span style={{
-                ...pillStyle,
-                background: crashed ? '#FEE2E2' : running ? '#DCFCE7' : '#F1F1F4',
-                color:      crashed ? '#DC2626' : running ? '#166534' : '#6B6B76',
-                cursor:     crashed ? 'pointer' : 'default',
-            }}
-                  onClick={crashed ? p.onResetEngine : undefined}>
-                {crashed ? 'Crashed — click to reset' : running ? 'Running' : 'Idle'}
-            </span>
+            <div style={rightGroupStyle}>
+                {p.onOpenPlayer && (
+                    <button type="button" onClick={p.onOpenPlayer} style={neutralStyle} aria-label="Open in player">
+                        <FaMobileScreenButton size={12} color="#ED225D" aria-hidden /> Player
+                    </button>
+                )}
+                <button type="button" onClick={p.onGallery} style={neutralStyle} aria-label="Gallery">
+                    <FaGamepad size={12} color="#ED225D" aria-hidden /> Gallery
+                </button>
+                <span style={{
+                    ...pillStyle,
+                    background: crashed ? '#FEE2E2' : running ? '#DCFCE7' : '#F1F1F4',
+                    color:      crashed ? '#DC2626' : running ? '#166534' : '#6B6B76',
+                    cursor:     crashed ? 'pointer' : 'default',
+                }}
+                      onClick={crashed ? p.onResetEngine : undefined}>
+                    {crashed ? 'Crashed — click to reset' : running ? 'Running' : 'Idle'}
+                </span>
+            </div>
         </div>
     );
 }
