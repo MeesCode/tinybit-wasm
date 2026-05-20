@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getRuntime, type Runtime } from '../engine/runtime';
 import { makeFrameLoop, type FrameLoop } from '../engine/frameLoop';
 import { loadGallery } from '../state/gallery';
@@ -23,9 +23,27 @@ const linkStyle: CSSProperties = {
 
 export function PlayerRoute() {
     const [state, setState] = useState<State>({ kind: 'boot' });
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const runtimeRef = useRef<Runtime | null>(null);
     const frameLoopRef = useRef<FrameLoop | null>(null);
+
+    // A promise that resolves with the canvas DOM node the moment the callback
+    // ref fires. Using rAF to wait for canvas mount is unreliable (Firefox
+    // Android in particular runs the rAF before the React commit attaches the
+    // node); a callback ref is deterministic.
+    const canvasReadyRef = useRef<{
+        promise: Promise<HTMLCanvasElement>;
+        resolve: (c: HTMLCanvasElement) => void;
+    } | null>(null);
+    if (canvasReadyRef.current === null) {
+        let resolve!: (c: HTMLCanvasElement) => void;
+        const promise = new Promise<HTMLCanvasElement>((r) => { resolve = r; });
+        canvasReadyRef.current = { promise, resolve };
+    }
+    const setCanvasRef = useCallback((node: HTMLCanvasElement | null) => {
+        canvasRef.current = node;
+        if (node) canvasReadyRef.current!.resolve(node);
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -85,10 +103,7 @@ export function PlayerRoute() {
     }, []);
 
     async function startLauncher(rt: Runtime): Promise<void> {
-        // Wait one frame so canvasRef is attached after the shell mounts.
-        await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-        const canvas = canvasRef.current;
-        if (!canvas) throw new Error('Canvas not mounted');
+        const canvas = await canvasReadyRef.current!.promise;
         // tb.init() loads the engine's built-in launcher Lua script. No
         // feedCartridge call — the launcher will request cartridge bytes
         // through the gamecount/gameload imports as the user navigates.
@@ -133,7 +148,7 @@ export function PlayerRoute() {
     }
     return (
         <PlayerShell
-            canvasRef={canvasRef}
+            canvasRef={setCanvasRef}
             onSetButton={handleSetButton}
             onExit={handleExit}
             onReset={handleReset}

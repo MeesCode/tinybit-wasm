@@ -1,9 +1,9 @@
-import { useState, type CSSProperties, type RefObject } from 'react';
+import { useState, type CSSProperties, type Ref } from 'react';
 import { shellLayout, PLAYER_BUTTONS, PLAYER_BUTTON_IDX, type PlayerButton } from './shellLayout';
 import { usePointerButton } from './usePointerButton';
 
 export interface PlayerShellProps {
-    canvasRef:   RefObject<HTMLCanvasElement>;
+    canvasRef:   Ref<HTMLCanvasElement>;
     onSetButton(idx: number, pressed: boolean): void;
     onExit():    void;
     onReset():   void;
