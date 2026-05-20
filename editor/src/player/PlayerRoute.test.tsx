@@ -104,4 +104,18 @@ describe('PlayerRoute', () => {
         await waitFor(() => expect(screen.getByText(/encode boom/i)).toBeInTheDocument());
         expect(screen.getByRole('link', { name: /back/i })).toBeInTheDocument();
     });
+
+    test('exit from shell entered via gallery returns to gallery picker', async () => {
+        render(<PlayerRoute initial="gallery" />);
+        // Pick a cartridge to enter the shell.
+        const card = await screen.findByRole('button', { name: /Cart/ });
+        await userEvent.click(card);
+        await waitFor(() => expect(tb.start).toHaveBeenCalled());
+        // Now exit — should return to the gallery picker, not history.back().
+        await userEvent.click(screen.getByRole('button', { name: /exit player/i }));
+        await waitFor(() => expect(screen.getByRole('heading', { name: /pick a cartridge/i })).toBeInTheDocument());
+        // The frame loop should have been stopped on exit.
+        expect(fakeFrameLoop.stop).toHaveBeenCalled();
+        expect(tb.stop).toHaveBeenCalled();
+    });
 });

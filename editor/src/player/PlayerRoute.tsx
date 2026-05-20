@@ -137,6 +137,14 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
     function handleExit(): void {
         frameLoopRef.current?.stop();
         runtimeRef.current?.tb.stop();
+        // If the user entered via the gallery, return there so they can pick another cartridge
+        // without going through the editor. Otherwise (entered via ?play=current), back out
+        // to wherever they came from.
+        const rt = runtimeRef.current;
+        if (initial === 'gallery' && rt) {
+            void bootGallery(rt);
+            return;
+        }
         if (window.history.length > 1) {
             window.history.back();
         } else {
