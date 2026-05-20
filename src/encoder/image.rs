@@ -4,7 +4,7 @@ use png::{ColorType, Decoder, Transformations};
 
 /// Cover image position in the 256×256 cartridge canvas.
 pub const COVER_X: usize = 64;
-pub const COVER_Y: usize = 60;
+pub const COVER_Y: usize = 64;
 pub const SCREEN_W: usize = 128;
 pub const SCREEN_H: usize = 128;
 pub const CART_W: usize = 256;
@@ -160,13 +160,13 @@ mod tests {
         }
         composite_cover(arr, &cover);
 
-        // Pixel (0,0) of canvas is outside the cover region (cover starts at (64,60)).
+        // Pixel (0,0) of canvas is outside the cover region (cover starts at (64,64)).
         assert_eq!(arr[0], 0xAA);
-        // Pixel (64,60) is top-left of cover region; corresponds to cover (0,0) = 0.
-        let canvas_idx = (60 * CART_W + 64) * 4;
+        // Pixel (64, 64) is top-left of cover region; corresponds to cover (0,0) = 0.
+        let canvas_idx = (64 * CART_W + 64) * 4;
         assert_eq!(arr[canvas_idx], 0);
-        // Pixel (65,60) -> cover (1,0) -> cover index 4 (=4 mod 256).
-        let canvas_idx2 = (60 * CART_W + 65) * 4;
+        // Pixel (65, 64) -> cover (1,0) -> cover index 4 (=4 mod 256).
+        let canvas_idx2 = (64 * CART_W + 65) * 4;
         assert_eq!(arr[canvas_idx2], 4);
     }
 }

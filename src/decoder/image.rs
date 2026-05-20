@@ -15,7 +15,7 @@ pub fn decode_cartridge_png(
     decode_256x256_rgba(png_bytes, dest)
 }
 
-/// Crop the visible cover rect (64,60)–(192,188) into a 128×128 RGBA buffer.
+/// Crop the visible cover rect (64,64)–(192,192) into a 128×128 RGBA buffer.
 pub fn extract_cover_rgba(
     canvas: &[u8; CART_RGBA_LEN],
     dest: &mut [u8; SCREEN_RGBA_LEN],
