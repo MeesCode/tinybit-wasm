@@ -7,6 +7,7 @@ pub mod steg;
 pub mod font_data;
 pub mod font;
 pub mod layout;
+pub mod frame;
 
 pub use header::HeaderOpts;
 
