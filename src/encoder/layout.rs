@@ -52,6 +52,46 @@ fn truncate_to_fit(text: &str, max_w: u32, scale: u8) -> String {
     }
 }
 
+/// Format the author line. Returns `None` when `text` is empty (so callers can
+/// skip drawing entirely). Non-empty input is uppercased and wrapped with
+/// `-- BY ... --`. If the result exceeds AUTHOR_LINE_MAX_W, only the name part
+/// is truncated with `...` until the whole line fits.
+pub fn fit_author(text: &str) -> Option<String> {
+    if text.is_empty() {
+        return None;
+    }
+    let up = text.to_ascii_uppercase();
+
+    let try_line = |name: &str| -> String {
+        let mut s = String::with_capacity(name.len() + 10);
+        s.push_str("-- BY ");
+        s.push_str(name);
+        s.push_str(" --");
+        s
+    };
+
+    let full = try_line(&up);
+    if measure(&full, 1) <= AUTHOR_LINE_MAX_W {
+        return Some(full);
+    }
+
+    // Truncate the name part with ellipsis, keeping the "-- BY " / " --" wrappers.
+    // Find the largest prefix of `up` such that the wrapped+ellipsised line fits.
+    let bytes = up.as_bytes();
+    let mut end = bytes.len();
+    loop {
+        let truncated = format!("{}...", &up[..end]);
+        let line = try_line(&truncated);
+        if measure(&line, 1) <= AUTHOR_LINE_MAX_W {
+            return Some(line);
+        }
+        if end == 0 {
+            return Some(try_line("..."));
+        }
+        end -= 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,5 +127,33 @@ mod tests {
     fn fit_title_uppercases_lowercase_input() {
         let (s, _) = fit_title("hello");
         assert_eq!(s, "HELLO");
+    }
+
+    #[test]
+    fn fit_author_empty_returns_none() {
+        assert!(fit_author("").is_none());
+    }
+
+    #[test]
+    fn fit_author_short_renders_decoration() {
+        let s = fit_author("alice").unwrap();
+        assert_eq!(s, "-- BY ALICE --");
+    }
+
+    #[test]
+    fn fit_author_long_truncates_with_ellipsis() {
+        let long = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // 26 chars
+        // "-- BY ABC...XYZ --" — the inner truncation keeps the line ≤ 200 px.
+        let s = fit_author(long).unwrap();
+        assert!(s.starts_with("-- BY "));
+        assert!(s.ends_with(" --"));
+        assert!(measure(&s, 1) <= AUTHOR_LINE_MAX_W);
+    }
+
+    #[test]
+    fn fit_author_whitespace_only_is_not_empty() {
+        let s = fit_author("   ").unwrap();
+        // The user gets back what they typed (uppercased / unchanged for whitespace).
+        assert_eq!(s, "-- BY     --");
     }
 }
