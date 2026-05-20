@@ -235,23 +235,17 @@ mod tests {
         assert_eq!(back_arr[canvas_idx + 1] & 0xF0, 20  & 0xF0);
         assert_eq!(back_arr[canvas_idx + 2] & 0xF0, 30  & 0xF0);
 
-        // Title plate's top-left interior corner (just inside the 2-px dark border).
-        // Plate is (40, 24, 176, 30); inside the border starts at (42, 26).
-        // After steg the low 2 bits are clobbered, so compare against the top 6 bits
-        // of the plate color #e8d56a.
-        let plate_idx = (26 * crate::encoder::image::CART_W + 42) * 4;
-        assert_eq!(back_arr[plate_idx]     & 0xFC, 0xe8 & 0xFC);
-        assert_eq!(back_arr[plate_idx + 1] & 0xFC, 0xd5 & 0xFC);
-        assert_eq!(back_arr[plate_idx + 2] & 0xFC, 0x6a & 0xFC);
-
-        // Cover offset moved from (64, 60) to (64, 64) — sanity check that the
-        // pixel at the *old* offset (y=60) is now the dark screen-well color, not
-        // the cover's top-left (which is at y=64).
-        let old_y_idx = (60 * crate::encoder::image::CART_W + 64) * 4;
-        // Screen well is #0a2218 with top 6 bits = 0x08, 0x20, 0x18.
-        assert_eq!(back_arr[old_y_idx]     & 0xFC, 0x0a & 0xFC);
-        assert_eq!(back_arr[old_y_idx + 1] & 0xFC, 0x22 & 0xFC);
-        assert_eq!(back_arr[old_y_idx + 2] & 0xFC, 0x18 & 0xFC);
+        // Frame survives steg: a pixel that is OUTSIDE both the cover region and
+        // the title/author text regions should match the bundled frame's top 6 bits
+        // exactly. (10, 10) is a corner pixel safely inside neither.
+        let mut frame_buf = vec![0u8; CART_RGBA_LEN].into_boxed_slice();
+        let frame_arr: &mut [u8; CART_RGBA_LEN] =
+            frame_buf.as_mut().try_into().unwrap();
+        decode_256x256_rgba(crate::encoder::image::BUNDLED_FRAME, frame_arr).unwrap();
+        let p = (10 * crate::encoder::image::CART_W + 10) * 4;
+        assert_eq!(back_arr[p]     & 0xFC, frame_arr[p]     & 0xFC);
+        assert_eq!(back_arr[p + 1] & 0xFC, frame_arr[p + 1] & 0xFC);
+        assert_eq!(back_arr[p + 2] & 0xFC, frame_arr[p + 2] & 0xFC);
     }
 
     #[test]
