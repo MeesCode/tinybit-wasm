@@ -12,6 +12,12 @@ pub const CART_H: usize = 256;
 pub const CART_RGBA_LEN: usize = CART_W * CART_H * 4;     // 262_144
 pub const SCREEN_RGBA_LEN: usize = SCREEN_W * SCREEN_H * 4; // 65_536
 
+/// Default frame, embedded at compile time. Replace `assets/cartridge_frame.png`
+/// (256×256 RGBA) to change the exported cartridge artwork. The encoder
+/// composites the cover at (COVER_X, COVER_Y) and renders title/author text
+/// over this frame.
+pub const BUNDLED_FRAME: &[u8] = include_bytes!("../../assets/cartridge_frame.png");
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum ImageError {
     Decode(&'static str),
@@ -138,6 +144,13 @@ mod tests {
         decode_256x256_rgba(&png, arr).unwrap();
         // Spot-check
         assert_eq!(arr[3], 0xFF);
+    }
+
+    #[test]
+    fn bundled_frame_is_valid_256x256() {
+        let mut buf = vec![0u8; CART_RGBA_LEN].into_boxed_slice();
+        let arr: &mut [u8; CART_RGBA_LEN] = buf.as_mut().try_into().unwrap();
+        decode_256x256_rgba(BUNDLED_FRAME, arr).unwrap();
     }
 
     #[test]
