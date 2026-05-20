@@ -3,7 +3,7 @@ import { shellLayout, PLAYER_BUTTONS, PLAYER_BUTTON_IDX, type PlayerButton } fro
 import { usePointerButton } from './usePointerButton';
 
 export interface PlayerShellProps {
-    canvasRef:   RefObject<HTMLCanvasElement | null>;
+    canvasRef:   RefObject<HTMLCanvasElement>;
     onSetButton(idx: number, pressed: boolean): void;
     onExit():    void;
 }
