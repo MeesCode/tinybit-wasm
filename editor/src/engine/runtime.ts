@@ -4,6 +4,7 @@ import { makeEncoder, type Encoder, type EncoderExports } from './encoder';
 import { makeDecoder, type Decoder, type DecoderExports } from './decoder';
 import { makeSpritesheet, type Spritesheet } from './spritesheet';
 import { makePreview, type Preview, type PreviewExports } from './preview';
+import { gameLoaderImports } from './gameLoader';
 
 export interface Runtime {
     wasm: WebAssembly.Instance;
@@ -31,7 +32,7 @@ async function bootRuntime(sinks: WasiSinks): Promise<Runtime> {
     const shim = makeWasiShim(memoryRef, sinks);
     const wasm = await WebAssembly.instantiateStreaming(
         fetch(WASM_URL),
-        { wasi_snapshot_preview1: shim },
+        { wasi_snapshot_preview1: shim, env: gameLoaderImports },
     );
     const exports = wasm.instance.exports as unknown as
         TinybitExports & Partial<EncoderExports> & Partial<DecoderExports> & Partial<PreviewExports>;

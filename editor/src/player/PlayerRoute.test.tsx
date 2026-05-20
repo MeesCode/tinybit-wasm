@@ -7,6 +7,7 @@ import type { Tinybit } from '../engine/tinybit';
 import type { Encoder } from '../engine/encoder';
 import type { Decoder } from '../engine/decoder';
 import type { FrameLoop } from '../engine/frameLoop';
+import { gameLoaderImports } from '../engine/gameLoader';
 
 const tb: Tinybit = {
     init: vi.fn(), feedCartridge: vi.fn(), start: vi.fn(), stop: vi.fn(),
@@ -61,7 +62,7 @@ vi.mock('../state/gallery', () => ({
     loadGallery: vi.fn(() => Promise.resolve({
         entries: [{
             id: 'x', filename: 'x.tb.png', title: 'Cart', author: 'A',
-            coverUrl: 'data:,x', cartridge: new Uint8Array([9]),
+            coverUrl: 'data:,x', cartridge: new Uint8Array([9, 9, 9]),
         }],
         failures: [],
     })),
@@ -78,24 +79,28 @@ beforeEach(() => {
 });
 
 describe('PlayerRoute', () => {
-    test('mode="current" boots the engine with the persisted sketch', async () => {
+    test('mode="current" feeds the persisted sketch (no launcher)', async () => {
         render(<PlayerRoute initial="current" />);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
         expect(tb.init).toHaveBeenCalled();
-        expect(tb.feedCartridge).toHaveBeenCalled();
+        // ?play=current feeds the encoded sketch bytes directly.
+        expect(tb.feedCartridge).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
         expect(fakeFrameLoop.start).toHaveBeenCalled();
         expect(screen.getByLabelText(/tinybit display/i)).toBeInTheDocument();
     });
 
-    test('mode="gallery" shows the picker, then boots after picking', async () => {
+    test('mode="gallery" configures the host loader and boots the engine launcher', async () => {
         render(<PlayerRoute initial="gallery" />);
-        // The gallery renders a card button whose accessible name contains the cart title.
-        // Use role+name so we don't collide with the page heading "Pick a cartridge".
-        const card = await screen.findByRole('button', { name: /Cart/ });
-        expect(tb.start).not.toHaveBeenCalled();
-        await userEvent.click(card);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
-        expect(tb.feedCartridge).toHaveBeenCalled();
+        // Launcher mode means tb.init was called but no cartridge was fed up-front;
+        // bytes only flow when the engine calls back via js_gameload.
+        expect(tb.init).toHaveBeenCalled();
+        expect(tb.feedCartridge).not.toHaveBeenCalled();
+        // The host imports should now report the gallery the engine can browse.
+        expect(gameLoaderImports.js_gamecount()).toBe(1);
+        // Triggering js_gameload(0) should feed the corresponding cartridge bytes.
+        gameLoaderImports.js_gameload(0);
+        expect(tb.feedCartridge).toHaveBeenCalledWith(new Uint8Array([9, 9, 9]));
     });
 
     test('encode failure renders error card with Back link', async () => {
@@ -105,16 +110,15 @@ describe('PlayerRoute', () => {
         expect(screen.getByRole('link', { name: /back/i })).toBeInTheDocument();
     });
 
-    test('exit from shell entered via gallery returns to gallery picker', async () => {
+    test('exit from gallery mode restarts the launcher instead of navigating', async () => {
         render(<PlayerRoute initial="gallery" />);
-        // Pick a cartridge to enter the shell.
-        const card = await screen.findByRole('button', { name: /Cart/ });
-        await userEvent.click(card);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
-        // Now exit — should return to the gallery picker, not history.back().
+        const startCallsBefore = (tb.start as ReturnType<typeof vi.fn>).mock.calls.length;
         await userEvent.click(screen.getByRole('button', { name: /exit player/i }));
-        await waitFor(() => expect(screen.getByRole('heading', { name: /pick a cartridge/i })).toBeInTheDocument());
-        // The frame loop should have been stopped on exit.
+        await waitFor(() => {
+            expect((tb.start as ReturnType<typeof vi.fn>).mock.calls.length)
+                .toBeGreaterThan(startCallsBefore);
+        });
         expect(fakeFrameLoop.stop).toHaveBeenCalled();
         expect(tb.stop).toHaveBeenCalled();
     });

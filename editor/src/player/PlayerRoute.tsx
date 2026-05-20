@@ -2,15 +2,14 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getRuntime, type Runtime } from '../engine/runtime';
 import { makeFrameLoop, type FrameLoop } from '../engine/frameLoop';
 import { loadSketch } from '../state/persist';
-import { loadGallery, type GalleryEntry } from '../state/gallery';
+import { loadGallery } from '../state/gallery';
 import { buildCartridge } from '../engine/buildCartridge';
+import { configureGameLoader, clearGameLoader } from '../engine/gameLoader';
 import { PlayerShell } from './PlayerShell';
-import { PlayerGallery, type PlayerGalleryState } from './PlayerGallery';
 import type { PlayerMode } from './routing';
 
 type State =
     | { kind: 'boot' }
-    | { kind: 'gallery'; data: PlayerGalleryState }
     | { kind: 'running' }
     | { kind: 'error'; message: string };
 
@@ -55,7 +54,14 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
                 }
             }
         })();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            // Stop the engine and tear down the game loader on unmount so a
+            // stale gallery doesn't leak into a future ?play=current session.
+            frameLoopRef.current?.stop();
+            runtimeRef.current?.tb.stop();
+            clearGameLoader();
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -92,42 +98,49 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
             title: stored.title, author: stored.author,
         });
         if (!result.ok) throw new Error(result.error);
+        // ?play=current bypasses the engine's launcher entirely.
+        clearGameLoader();
         setState({ kind: 'running' });
-        await startEngine(rt, result.bytes);
+        await startCartridge(rt, result.bytes);
     }
 
     async function bootGallery(rt: Runtime): Promise<void> {
-        setState({ kind: 'gallery', data: { kind: 'loading' } });
-        try {
-            const g = await loadGallery(rt.dec);
-            setState({ kind: 'gallery', data: { kind: 'ready', entries: g.entries, failures: g.failures } });
-        } catch (err) {
-            setState({
-                kind: 'gallery',
-                data: { kind: 'error', message: err instanceof Error ? err.message : String(err) },
-            });
-        }
+        // Populate the loader, then boot the engine without feeding a
+        // cartridge — the built-in launcher script (loaded by tb.init) will
+        // call gamecount()/gameload() and walk the user through selection.
+        const g = await loadGallery(rt.dec);
+        const carts = g.entries.map((e) => e.cartridge);
+        configureGameLoader({
+            gallery: carts,
+            feed: (bytes) => rt.tb.feedCartridge(bytes),
+        });
+        setState({ kind: 'running' });
+        await startLauncher(rt);
     }
 
-    async function startEngine(rt: Runtime, bytes: Uint8Array): Promise<void> {
-        // Wait one frame so canvasRef is attached after the shell mounts.
+    async function waitForCanvas(): Promise<HTMLCanvasElement> {
         await new Promise((r) => requestAnimationFrame(() => r(undefined)));
         const canvas = canvasRef.current;
         if (!canvas) throw new Error('Canvas not mounted');
+        return canvas;
+    }
+
+    async function startCartridge(rt: Runtime, bytes: Uint8Array): Promise<void> {
+        const canvas = await waitForCanvas();
         rt.tb.init();
         rt.tb.feedCartridge(bytes);
         rt.tb.start();
         await frameLoopRef.current!.start(canvas);
     }
 
-    async function handlePick(entry: GalleryEntry): Promise<void> {
-        const rt = runtimeRef.current; if (!rt) return;
-        try {
-            setState({ kind: 'running' });
-            await startEngine(rt, entry.cartridge);
-        } catch (err) {
-            setState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
-        }
+    async function startLauncher(rt: Runtime): Promise<void> {
+        const canvas = await waitForCanvas();
+        // tb.init() loads the engine's built-in launcher Lua script. No
+        // feedCartridge call — the launcher will request cartridge bytes
+        // through the gamecount/gameload imports as the user navigates.
+        rt.tb.init();
+        rt.tb.start();
+        await frameLoopRef.current!.start(canvas);
     }
 
     function handleSetButton(idx: number, pressed: boolean): void {
@@ -137,12 +150,11 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
     function handleExit(): void {
         frameLoopRef.current?.stop();
         runtimeRef.current?.tb.stop();
-        // If the user entered via the gallery, return there so they can pick another cartridge
-        // without going through the editor. Otherwise (entered via ?play=current), back out
-        // to wherever they came from.
-        const rt = runtimeRef.current;
-        if (initial === 'gallery' && rt) {
-            void bootGallery(rt);
+        // From ?play (the launcher), exit just restarts the launcher so the
+        // user can pick another cartridge. From ?play=current, back out to
+        // the editor.
+        if (initial === 'gallery' && runtimeRef.current) {
+            void startLauncher(runtimeRef.current);
             return;
         }
         if (window.history.length > 1) {
@@ -164,15 +176,6 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
                     <a href="/" style={linkStyle}>Back to editor</a>
                 </div>
             </div>
-        );
-    }
-    if (state.kind === 'gallery') {
-        return (
-            <PlayerGallery
-                state={state.data}
-                onPick={handlePick}
-                onBack={() => { window.location.href = '/'; }}
-            />
         );
     }
     return (

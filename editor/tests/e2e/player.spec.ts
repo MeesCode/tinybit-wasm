@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('player route', () => {
-    test('?play renders the gallery picker with at least one cartridge', async ({ page }) => {
+    test('?play boots the engine launcher inside the device shell', async ({ page }) => {
         await page.goto('/?play');
-        await expect(page.getByRole('heading', { name: /pick a cartridge/i })).toBeVisible();
-        // The shipped sample cartridges in editor/src/cartridges/ should populate the gallery.
-        // Allow up to 15s for wasm boot + gallery load.
-        await expect(page.locator('button:has(img)').first()).toBeVisible({ timeout: 15_000 });
+        // The engine's built-in launcher cartridge runs inside the shell —
+        // confirm we land on the shell (not on a JS gallery picker) and the
+        // canvas + hitboxes are present.
+        await expect(page.getByLabel(/tinybit display/i)).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByLabel(/^a button$/i)).toBeVisible();
+        await expect(page.getByRole('button', { name: /exit player/i })).toBeVisible();
     });
 
     test('?play=current renders the shell with canvas and six hitboxes', async ({ page }) => {

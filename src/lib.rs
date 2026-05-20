@@ -196,6 +196,16 @@ thread_local! {
     static STATE: RefCell<Option<TinyBitState>> = const { RefCell::new(None) };
 }
 
+// Host-provided gallery callbacks. JS implements `env.js_gamecount` and
+// `env.js_gameload`. The engine's built-in launcher script calls gamecount()
+// and gameload(idx); those C-side bridges delegate to these imports, which
+// the JS side answers by feeding the appropriate cartridge bytes via the
+// existing tb_feed_cartridge path.
+extern "C" {
+    fn js_gamecount() -> c_int;
+    fn js_gameload(idx: c_int);
+}
+
 static START_INSTANT: OnceLock<Instant> = OnceLock::new();
 
 #[no_mangle]
@@ -259,10 +269,12 @@ unsafe extern "C" fn get_ticks_ms_cb() -> c_int {
 unsafe extern "C" fn noop_cb() {}
 
 unsafe extern "C" fn gamecount_cb() -> c_int {
-    0
+    js_gamecount()
 }
 
-unsafe extern "C" fn gameload_cb(_idx: c_int) {}
+unsafe extern "C" fn gameload_cb(idx: c_int) {
+    js_gameload(idx);
+}
 
 #[no_mangle]
 pub extern "C" fn tb_feed_buffer_ptr() -> *mut u8 {
