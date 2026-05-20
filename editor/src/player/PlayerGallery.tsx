@@ -85,7 +85,7 @@ export function PlayerGallery({ state, onPick, onBack }: PlayerGalleryProps) {
         <div style={wrapStyle} data-route="player-gallery">
             <div style={headerStyle}>
                 <button type="button" style={backStyle} onClick={onBack} aria-label="Back">‹ Back</button>
-                <h1 style={titleStyle}>Pick a cartridge</h1>
+                <h1 style={titleStyle}>Pick a game</h1>
             </div>
             {state.kind === 'loading' && <div style={msgStyle}>Loading…</div>}
             {state.kind === 'error'   && <div style={msgStyle}>{state.message}</div>}
