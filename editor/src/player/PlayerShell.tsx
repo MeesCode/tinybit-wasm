@@ -25,11 +25,12 @@ const wrapStyle: CSSProperties = {
 };
 
 const innerStyle = (aspect: number): CSSProperties => ({
+    // Largest rectangle with the image's aspect that fits in the viewport.
+    // Both width and height are clamped together so the aspect never breaks,
+    // which keeps hitbox %-coords aligned with the painted-on buttons.
     position: 'relative',
-    height: '100dvh',
-    aspectRatio: `${aspect}`,
-    maxWidth: '100vw',
-    maxHeight: '100dvh',
+    width:  `min(100vw, calc(100dvh * ${aspect}))`,
+    height: `min(100dvh, calc(100vw / ${aspect}))`,
 });
 
 const imageStyle: CSSProperties = {
