@@ -89,3 +89,79 @@ describe('makeFrameLoop pacing', () => {
         loop.stop();
     });
 });
+
+describe('makeFrameLoop audio gesture unlock', () => {
+    let resumeSpy: ReturnType<typeof vi.fn>;
+    let ctxState: 'suspended' | 'running';
+    let connectSpy: ReturnType<typeof vi.fn>;
+    let postMessageSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        ctxState = 'suspended';
+        resumeSpy = vi.fn(() => {
+            ctxState = 'running';
+            return Promise.resolve();
+        });
+        connectSpy = vi.fn();
+        postMessageSpy = vi.fn();
+
+        class FakeAudioContext {
+            destination = {};
+            audioWorklet = { addModule: vi.fn(() => Promise.resolve()) };
+            get state() { return ctxState; }
+            resume = resumeSpy;
+        }
+        class FakeAudioWorkletNode {
+            connect = connectSpy;
+            port = { postMessage: postMessageSpy };
+        }
+        vi.stubGlobal('AudioContext', FakeAudioContext);
+        vi.stubGlobal('AudioWorkletNode', FakeAudioWorkletNode);
+        vi.stubGlobal('Blob', class { constructor(_p: unknown[], _o: unknown) {} });
+        vi.stubGlobal('URL', { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} });
+        vi.stubGlobal('requestAnimationFrame', () => 1);
+        vi.stubGlobal('cancelAnimationFrame', () => {});
+    });
+
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    function fakeCanvas(): HTMLCanvasElement {
+        const ctx2d = {
+            createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }) as ImageData,
+            putImageData: vi.fn(),
+        } as unknown as CanvasRenderingContext2D;
+        return { getContext: () => ctx2d } as unknown as HTMLCanvasElement;
+    }
+
+    test('resumes a suspended AudioContext on the first user gesture', async () => {
+        const tb = mockTinybit();
+        const loop = makeFrameLoop(tb);
+        await loop.start(fakeCanvas());
+        expect(resumeSpy).not.toHaveBeenCalled();
+        window.dispatchEvent(new Event('pointerdown'));
+        expect(resumeSpy).toHaveBeenCalledTimes(1);
+        loop.stop();
+    });
+
+    test('removes its unlock listeners after the first gesture', async () => {
+        const tb = mockTinybit();
+        const loop = makeFrameLoop(tb);
+        await loop.start(fakeCanvas());
+        window.dispatchEvent(new Event('pointerdown'));
+        window.dispatchEvent(new Event('pointerdown'));
+        window.dispatchEvent(new Event('keydown'));
+        window.dispatchEvent(new Event('touchstart'));
+        expect(resumeSpy).toHaveBeenCalledTimes(1);
+        loop.stop();
+    });
+
+    test('does not register unlock listeners when the context is already running', async () => {
+        ctxState = 'running';
+        const tb = mockTinybit();
+        const loop = makeFrameLoop(tb);
+        await loop.start(fakeCanvas());
+        window.dispatchEvent(new Event('pointerdown'));
+        expect(resumeSpy).not.toHaveBeenCalled();
+        loop.stop();
+    });
+});

@@ -20,6 +20,15 @@ export interface FrameLoop {
     onLuaError(cb: (err: LuaError) => void): () => void;
 }
 
+function armAudioUnlock(ctx: AudioContext): void {
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
+    const unlock = () => {
+        for (const ev of events) window.removeEventListener(ev, unlock);
+        ctx.resume().catch(() => {});
+    };
+    for (const ev of events) window.addEventListener(ev, unlock, { passive: true });
+}
+
 export function makeFrameLoop(tb: Tinybit): FrameLoop {
     let raf = 0;
     let state: FrameLoopState = 'idle';
@@ -96,6 +105,11 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
                     audioCtx = new AudioContext({ sampleRate: 22000 });
                     workletNode = await attachAudioWorklet(audioCtx);
                     workletNode.connect(audioCtx.destination);
+                    // Firefox mobile (and Safari) start an AudioContext created
+                    // outside a user gesture in the 'suspended' state — silently.
+                    // The player view boots audio from a mount effect, so we
+                    // arm a one-shot listener that resumes on the first input.
+                    if (audioCtx.state === 'suspended') armAudioUnlock(audioCtx);
                 } catch {
                     audioCtx = null;
                     workletNode = null;
