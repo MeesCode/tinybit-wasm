@@ -5,6 +5,9 @@ import { parseLuaError, type LuaError } from './luaError';
 const SCREEN_W = 128;
 const SCREEN_H = 128;
 const AUDIO_FRAME_SAMPLES = 367;
+const STEP_MS = 1000 / 60;
+const MAX_STEPS_PER_RAF = 2;
+const MAX_DT_MS = STEP_MS * MAX_STEPS_PER_RAF;
 
 export type FrameLoopState = 'idle' | 'running' | 'error';
 
@@ -24,6 +27,8 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
     let imageData: ImageData | null = null;
     let audioCtx: AudioContext | null = null;
     let workletNode: AudioWorkletNode | null = null;
+    let lastTickMs = 0;
+    let accumulatorMs = 0;
     const stateCbs = new Set<(s: FrameLoopState) => void>();
     const errCbs = new Set<(m: string) => void>();
     const luaErrCbs = new Set<(e: LuaError) => void>();
@@ -52,24 +57,33 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
         workletNode.port.postMessage(f.buffer, [f.buffer]);
     }
 
-    function tick(canvas: HTMLCanvasElement) {
+    function tick(canvas: HTMLCanvasElement, now: number) {
         if (state !== 'running') return;
+        const dt = Math.min(now - lastTickMs, MAX_DT_MS);
+        lastTickMs = now;
+        accumulatorMs += dt;
         try {
-            tb.loopOnce();
-            const raw = tb.takeLuaError();
-            if (raw) {
-                const parsed = parseLuaError(raw.message, raw.traceback);
-                luaErrCbs.forEach((cb) => cb(parsed));
+            let steps = 0;
+            while (accumulatorMs >= STEP_MS && steps < MAX_STEPS_PER_RAF) {
+                tb.loopOnce();
+                const raw = tb.takeLuaError();
+                if (raw) {
+                    const parsed = parseLuaError(raw.message, raw.traceback);
+                    luaErrCbs.forEach((cb) => cb(parsed));
+                }
+                pumpAudio();
+                accumulatorMs -= STEP_MS;
+                steps++;
             }
-            blit(canvas);
-            pumpAudio();
+            if (accumulatorMs > STEP_MS) accumulatorMs = STEP_MS;
+            if (steps > 0) blit(canvas);
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             errCbs.forEach((cb) => cb(msg));
             setState('error');
             return;
         }
-        raf = requestAnimationFrame(() => tick(canvas));
+        raf = requestAnimationFrame((t) => tick(canvas, t));
     }
 
     return {
@@ -88,7 +102,9 @@ export function makeFrameLoop(tb: Tinybit): FrameLoop {
                 }
             }
             setState('running');
-            raf = requestAnimationFrame(() => tick(canvas));
+            lastTickMs = performance.now();
+            accumulatorMs = 0;
+            raf = requestAnimationFrame((t) => tick(canvas, t));
         },
         stop() {
             if (raf) cancelAnimationFrame(raf);
