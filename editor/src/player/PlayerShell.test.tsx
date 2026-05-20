@@ -13,7 +13,7 @@ describe('PlayerShell', () => {
         expect(screen.getByAltText(/player shell/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/tinybit display/i)).toBeInstanceOf(HTMLCanvasElement);
         for (const name of PLAYER_BUTTONS) {
-            expect(screen.getByLabelText(name, { exact: false })).toBeInTheDocument();
+            expect(screen.getByLabelText(new RegExp(`^${name} button$`, 'i'))).toBeInTheDocument();
         }
         expect(screen.getByRole('button', { name: /exit/i })).toBeInTheDocument();
     });
