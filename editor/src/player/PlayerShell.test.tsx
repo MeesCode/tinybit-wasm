@@ -5,31 +5,46 @@ import { createRef } from 'react';
 import { PlayerShell } from './PlayerShell';
 import { PLAYER_BUTTONS } from './shellLayout';
 
+const noopProps = {
+    onSetButton: () => {},
+    onExit:      () => {},
+    onReset:     () => {},
+};
+
 describe('PlayerShell', () => {
-    test('renders the shell image, a canvas, six button hitboxes, and an exit chip', () => {
+    test('renders the shell image, canvas, six hitboxes, and the top-bar Reset + Close buttons', () => {
         const ref = createRef<HTMLCanvasElement>();
-        render(<PlayerShell canvasRef={ref} onSetButton={() => {}} onExit={() => {}} />);
+        render(<PlayerShell canvasRef={ref} {...noopProps} />);
 
         expect(screen.getByAltText(/player shell/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/tinybit display/i)).toBeInstanceOf(HTMLCanvasElement);
         for (const name of PLAYER_BUTTONS) {
             expect(screen.getByLabelText(new RegExp(`^${name} button$`, 'i'))).toBeInTheDocument();
         }
-        expect(screen.getByRole('button', { name: /exit/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /restart launcher/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /exit player/i })).toBeInTheDocument();
     });
 
-    test('clicking exit fires onExit', async () => {
+    test('clicking Close fires onExit', async () => {
         const onExit = vi.fn();
         const ref = createRef<HTMLCanvasElement>();
-        render(<PlayerShell canvasRef={ref} onSetButton={() => {}} onExit={onExit} />);
-        await userEvent.click(screen.getByRole('button', { name: /exit/i }));
+        render(<PlayerShell canvasRef={ref} {...noopProps} onExit={onExit} />);
+        await userEvent.click(screen.getByRole('button', { name: /exit player/i }));
         expect(onExit).toHaveBeenCalledOnce();
+    });
+
+    test('clicking Reset fires onReset', async () => {
+        const onReset = vi.fn();
+        const ref = createRef<HTMLCanvasElement>();
+        render(<PlayerShell canvasRef={ref} {...noopProps} onReset={onReset} />);
+        await userEvent.click(screen.getByRole('button', { name: /restart launcher/i }));
+        expect(onReset).toHaveBeenCalledOnce();
     });
 
     test('pressing the A hitbox calls onSetButton with idx 0 (a) true then false', () => {
         const onSet = vi.fn();
         const ref = createRef<HTMLCanvasElement>();
-        render(<PlayerShell canvasRef={ref} onSetButton={onSet} onExit={() => {}} />);
+        render(<PlayerShell canvasRef={ref} {...noopProps} onSetButton={onSet} />);
         const a = screen.getByLabelText(/^a button$/i);
         fireEvent.pointerDown(a, { pointerId: 1 });
         fireEvent.pointerUp(a, { pointerId: 1 });
@@ -40,7 +55,7 @@ describe('PlayerShell', () => {
     test('pressing the Up hitbox calls onSetButton with idx 2 (up)', () => {
         const onSet = vi.fn();
         const ref = createRef<HTMLCanvasElement>();
-        render(<PlayerShell canvasRef={ref} onSetButton={onSet} onExit={() => {}} />);
+        render(<PlayerShell canvasRef={ref} {...noopProps} onSetButton={onSet} />);
         const up = screen.getByLabelText(/^up button$/i);
         fireEvent.pointerDown(up, { pointerId: 1 });
         expect(onSet).toHaveBeenCalledWith(2, true);
@@ -48,7 +63,7 @@ describe('PlayerShell', () => {
 
     test('canvas is 128x128 with pixelated rendering', () => {
         const ref = createRef<HTMLCanvasElement>();
-        render(<PlayerShell canvasRef={ref} onSetButton={() => {}} onExit={() => {}} />);
+        render(<PlayerShell canvasRef={ref} {...noopProps} />);
         const canvas = screen.getByLabelText(/tinybit display/i) as HTMLCanvasElement;
         expect(canvas.width).toBe(128);
         expect(canvas.height).toBe(128);

@@ -363,12 +363,14 @@ export function Editor() {
     const handleOpenPlayer = useCallback(() => {
         frameLoopRef.current?.stop();
         runtime?.tb.stop();
-        // Force a synchronous save so the player tab/route sees fresh state.
+        // Flush any pending debounced edit so it isn't lost on the upcoming
+        // full-page navigation. The player itself doesn't read this — the
+        // editor does when the user navigates back.
         saveSketch(
             { script: sketch.script, sprite: sketch.sprite, cover: sketch.cover, title: sketch.title, author: sketch.author },
             (msg) => consoleAppend('warn', msg),
         );
-        window.location.search = '?play=current';
+        window.location.search = '?play';
     }, [runtime, sketch.script, sketch.sprite, sketch.cover, sketch.title, sketch.author, consoleAppend]);
 
     const handleClearCancel = useCallback(() => {

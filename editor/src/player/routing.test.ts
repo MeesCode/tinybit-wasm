@@ -10,23 +10,17 @@ describe('pickRoute', () => {
         expect(pickRoute('?foo=bar')).toEqual({ kind: 'editor' });
     });
 
-    test('?play (no value) → player gallery', () => {
-        expect(pickRoute('?play')).toEqual({ kind: 'player', mode: 'gallery' });
+    test('?play → player', () => {
+        expect(pickRoute('?play')).toEqual({ kind: 'player' });
     });
 
-    test('?play=gallery → player gallery', () => {
-        expect(pickRoute('?play=gallery')).toEqual({ kind: 'player', mode: 'gallery' });
-    });
-
-    test('?play=current → player current', () => {
-        expect(pickRoute('?play=current')).toEqual({ kind: 'player', mode: 'current' });
-    });
-
-    test('unknown play value falls back to gallery', () => {
-        expect(pickRoute('?play=garbage')).toEqual({ kind: 'player', mode: 'gallery' });
+    test('?play with any value → player (value ignored)', () => {
+        expect(pickRoute('?play=gallery')).toEqual({ kind: 'player' });
+        expect(pickRoute('?play=garbage')).toEqual({ kind: 'player' });
+        expect(pickRoute('?play=current')).toEqual({ kind: 'player' });
     });
 
     test('extra params ignored', () => {
-        expect(pickRoute('?play=current&debug=1')).toEqual({ kind: 'player', mode: 'current' });
+        expect(pickRoute('?play&debug=1')).toEqual({ kind: 'player' });
     });
 });

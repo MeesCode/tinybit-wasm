@@ -51,13 +51,6 @@ vi.mock('../engine/frameLoop', () => ({
     makeFrameLoop: vi.fn(() => fakeFrameLoop),
 }));
 
-vi.mock('../state/persist', () => ({
-    loadSketch: vi.fn(() => ({
-        script: 'function _draw() end', sprite: null, cover: null, title: 't', author: 'a',
-    })),
-    saveSketch: vi.fn(),
-}));
-
 vi.mock('../state/gallery', () => ({
     loadGallery: vi.fn(() => Promise.resolve({
         entries: [{
@@ -68,53 +61,31 @@ vi.mock('../state/gallery', () => ({
     })),
 }));
 
-// placeholders use OffscreenCanvas which is unavailable in jsdom — stub them out.
-vi.mock('../engine/placeholders', () => ({
-    getPlaceholderCover:  vi.fn(async () => new Uint8Array([0xC0, 0xC1])),
-    getPlaceholderSprite: vi.fn(async () => new Uint8Array([0x50, 0x51])),
-}));
-
 beforeEach(() => {
     vi.clearAllMocks();
 });
 
 describe('PlayerRoute', () => {
-    test('mode="current" feeds the persisted sketch (no launcher)', async () => {
-        render(<PlayerRoute initial="current" />);
+    test('boots the engine launcher and configures the host gallery loader', async () => {
+        render(<PlayerRoute />);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
-        expect(tb.init).toHaveBeenCalled();
-        // ?play=current feeds the encoded sketch bytes directly.
-        expect(tb.feedCartridge).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
-        expect(fakeFrameLoop.start).toHaveBeenCalled();
-        expect(screen.getByLabelText(/tinybit display/i)).toBeInTheDocument();
-    });
-
-    test('mode="gallery" configures the host loader and boots the engine launcher', async () => {
-        render(<PlayerRoute initial="gallery" />);
-        await waitFor(() => expect(tb.start).toHaveBeenCalled());
-        // Launcher mode means tb.init was called but no cartridge was fed up-front;
-        // bytes only flow when the engine calls back via js_gameload.
+        // Launcher mode: init was called but no cartridge fed up front.
         expect(tb.init).toHaveBeenCalled();
         expect(tb.feedCartridge).not.toHaveBeenCalled();
-        // The host imports should now report the gallery the engine can browse.
+        expect(fakeFrameLoop.start).toHaveBeenCalled();
+        expect(screen.getByLabelText(/tinybit display/i)).toBeInTheDocument();
+
+        // The host imports now report the gallery the engine can browse.
         expect(gameLoaderImports.js_gamecount()).toBe(1);
-        // Triggering js_gameload(0) should feed the corresponding cartridge bytes.
         gameLoaderImports.js_gameload(0);
         expect(tb.feedCartridge).toHaveBeenCalledWith(new Uint8Array([9, 9, 9]));
     });
 
-    test('encode failure renders error card with Back link', async () => {
-        (enc.encode as ReturnType<typeof vi.fn>).mockImplementationOnce(() => { throw new Error('encode boom'); });
-        render(<PlayerRoute initial="current" />);
-        await waitFor(() => expect(screen.getByText(/encode boom/i)).toBeInTheDocument());
-        expect(screen.getByRole('link', { name: /back/i })).toBeInTheDocument();
-    });
-
-    test('exit from gallery mode restarts the launcher instead of navigating', async () => {
-        render(<PlayerRoute initial="gallery" />);
+    test('Reset restarts the engine launcher', async () => {
+        render(<PlayerRoute />);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
         const startCallsBefore = (tb.start as ReturnType<typeof vi.fn>).mock.calls.length;
-        await userEvent.click(screen.getByRole('button', { name: /exit player/i }));
+        await userEvent.click(screen.getByRole('button', { name: /restart launcher/i }));
         await waitFor(() => {
             expect((tb.start as ReturnType<typeof vi.fn>).mock.calls.length)
                 .toBeGreaterThan(startCallsBefore);

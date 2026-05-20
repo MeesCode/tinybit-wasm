@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getRuntime, type Runtime } from '../engine/runtime';
 import { makeFrameLoop, type FrameLoop } from '../engine/frameLoop';
-import { loadSketch } from '../state/persist';
 import { loadGallery } from '../state/gallery';
-import { buildCartridge } from '../engine/buildCartridge';
 import { configureGameLoader, clearGameLoader } from '../engine/gameLoader';
 import { PlayerShell } from './PlayerShell';
-import type { PlayerMode } from './routing';
 
 type State =
     | { kind: 'boot' }
@@ -24,17 +21,12 @@ const linkStyle: CSSProperties = {
     color: '#ED225D', textDecoration: 'underline', marginTop: 12, display: 'inline-block',
 };
 
-export interface PlayerRouteProps {
-    initial: PlayerMode;
-}
-
-export function PlayerRoute({ initial }: PlayerRouteProps) {
+export function PlayerRoute() {
     const [state, setState] = useState<State>({ kind: 'boot' });
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const runtimeRef = useRef<Runtime | null>(null);
     const frameLoopRef = useRef<FrameLoop | null>(null);
 
-    // Boot runtime + dispatch initial mode.
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -43,11 +35,16 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
                 if (cancelled) return;
                 runtimeRef.current = rt;
                 frameLoopRef.current = makeFrameLoop(rt.tb);
-                if (initial === 'current') {
-                    await bootCurrent(rt);
-                } else {
-                    await bootGallery(rt);
-                }
+
+                const g = await loadGallery(rt.dec);
+                if (cancelled) return;
+                configureGameLoader({
+                    gallery: g.entries.map((e) => e.cartridge),
+                    feed: (bytes) => rt.tb.feedCartridge(bytes),
+                });
+
+                setState({ kind: 'running' });
+                await startLauncher(rt);
             } catch (err) {
                 if (!cancelled) {
                     setState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
@@ -56,16 +53,13 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
         })();
         return () => {
             cancelled = true;
-            // Stop the engine and tear down the game loader on unmount so a
-            // stale gallery doesn't leak into a future ?play=current session.
             frameLoopRef.current?.stop();
             runtimeRef.current?.tb.stop();
             clearGameLoader();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Keyboard input (desktop convenience) - map only the six surfaced buttons.
+    // Keyboard input (desktop convenience) — map only the six surfaced buttons.
     useEffect(() => {
         const map: Record<string, number> = {
             a: 0, A: 0, b: 1, B: 1,
@@ -90,51 +84,11 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
         };
     }, []);
 
-    async function bootCurrent(rt: Runtime): Promise<void> {
-        const stored = loadSketch();
-        if (!stored) throw new Error('No sketch saved. Open the editor first.');
-        const result = await buildCartridge(rt.enc, {
-            script: stored.script, sprite: stored.sprite, cover: stored.cover,
-            title: stored.title, author: stored.author,
-        });
-        if (!result.ok) throw new Error(result.error);
-        // ?play=current bypasses the engine's launcher entirely.
-        clearGameLoader();
-        setState({ kind: 'running' });
-        await startCartridge(rt, result.bytes);
-    }
-
-    async function bootGallery(rt: Runtime): Promise<void> {
-        // Populate the loader, then boot the engine without feeding a
-        // cartridge — the built-in launcher script (loaded by tb.init) will
-        // call gamecount()/gameload() and walk the user through selection.
-        const g = await loadGallery(rt.dec);
-        const carts = g.entries.map((e) => e.cartridge);
-        configureGameLoader({
-            gallery: carts,
-            feed: (bytes) => rt.tb.feedCartridge(bytes),
-        });
-        setState({ kind: 'running' });
-        await startLauncher(rt);
-    }
-
-    async function waitForCanvas(): Promise<HTMLCanvasElement> {
+    async function startLauncher(rt: Runtime): Promise<void> {
+        // Wait one frame so canvasRef is attached after the shell mounts.
         await new Promise((r) => requestAnimationFrame(() => r(undefined)));
         const canvas = canvasRef.current;
         if (!canvas) throw new Error('Canvas not mounted');
-        return canvas;
-    }
-
-    async function startCartridge(rt: Runtime, bytes: Uint8Array): Promise<void> {
-        const canvas = await waitForCanvas();
-        rt.tb.init();
-        rt.tb.feedCartridge(bytes);
-        rt.tb.start();
-        await frameLoopRef.current!.start(canvas);
-    }
-
-    async function startLauncher(rt: Runtime): Promise<void> {
-        const canvas = await waitForCanvas();
         // tb.init() loads the engine's built-in launcher Lua script. No
         // feedCartridge call — the launcher will request cartridge bytes
         // through the gamecount/gameload imports as the user navigates.
@@ -150,18 +104,17 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
     function handleExit(): void {
         frameLoopRef.current?.stop();
         runtimeRef.current?.tb.stop();
-        // From ?play (the launcher), exit just restarts the launcher so the
-        // user can pick another cartridge. From ?play=current, back out to
-        // the editor.
-        if (initial === 'gallery' && runtimeRef.current) {
-            void startLauncher(runtimeRef.current);
-            return;
-        }
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            window.location.href = '/';
-        }
+        // Always return to the editor. Using an explicit URL (rather than
+        // history.back) keeps behaviour predictable for direct-link visits
+        // and for tabs where about:blank sits in the back stack.
+        window.location.href = '/';
+    }
+
+    function handleReset(): void {
+        const rt = runtimeRef.current; if (!rt) return;
+        frameLoopRef.current?.stop();
+        rt.tb.stop();
+        void startLauncher(rt);
     }
 
     if (state.kind === 'boot') {
@@ -179,6 +132,11 @@ export function PlayerRoute({ initial }: PlayerRouteProps) {
         );
     }
     return (
-        <PlayerShell canvasRef={canvasRef} onSetButton={handleSetButton} onExit={handleExit} />
+        <PlayerShell
+            canvasRef={canvasRef}
+            onSetButton={handleSetButton}
+            onExit={handleExit}
+            onReset={handleReset}
+        />
     );
 }
