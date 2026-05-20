@@ -7,7 +7,6 @@ pub mod steg;
 pub mod font_data;
 pub mod font;
 pub mod layout;
-pub mod frame;
 
 pub use header::HeaderOpts;
 
@@ -77,7 +76,7 @@ pub fn encode(
     out: &mut Vec<u8>,
 ) -> Result<(), EncError> {
     use crate::encoder::image::{
-        composite_cover, decode_128x128_rgba, decode_256x256_rgba, ImageError,
+        composite_cover, decode_128x128_rgba, decode_256x256_rgba, BUNDLED_FRAME, ImageError,
     };
     use crate::encoder::png_io::{encode_rgba, PngWriteError};
     use crate::encoder::steg;
@@ -106,19 +105,12 @@ pub fn encode(
         ImageError::Decode(m)        => EncError::SpritePng(m),
     })?;
 
-    // 3. Frame: user override decodes a PNG into the canvas; otherwise we draw
-    //    the procedural default frame.
-    match frame_override {
-        Some(bytes) => {
-            decode_256x256_rgba(bytes, canvas_buf).map_err(|e| match e {
-                ImageError::WrongSize { .. } => EncError::FrameSize,
-                ImageError::Decode(m)        => EncError::FramePng(m),
-            })?;
-        }
-        None => {
-            crate::encoder::frame::draw_default_frame(canvas_buf);
-        }
-    }
+    // 3. Frame: override or bundled.
+    let frame_src: &[u8] = frame_override.unwrap_or(BUNDLED_FRAME);
+    decode_256x256_rgba(frame_src, canvas_buf).map_err(|e| match e {
+        ImageError::WrongSize { .. } => EncError::FrameSize,
+        ImageError::Decode(m)        => EncError::FramePng(m),
+    })?;
 
     // 4. Composite cover onto the visible canvas (high bits).
     composite_cover(canvas_buf, cover_rgba_buf);
