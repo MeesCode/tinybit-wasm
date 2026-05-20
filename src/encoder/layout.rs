@@ -31,10 +31,8 @@ pub fn fit_title(text: &str) -> (String, u8) {
 
 /// Iteratively drop the last char and append "..." until the result fits.
 fn truncate_to_fit(text: &str, max_w: u32, scale: u8) -> String {
-    // Greedy: take the longest prefix such that prefix + "..." fits.
     let bytes = text.as_bytes();
     let ellipsis = "...";
-    // Start from the longest possible prefix and shrink.
     let mut end = bytes.len();
     loop {
         let mut candidate = String::with_capacity(end + 3);
@@ -44,11 +42,13 @@ fn truncate_to_fit(text: &str, max_w: u32, scale: u8) -> String {
             return candidate;
         }
         if end == 0 {
-            // Even just "..." doesn't fit — should never happen with our budgets,
-            // but fall back to bare ellipsis.
             return ellipsis.to_string();
         }
         end -= 1;
+        // Snap past UTF-8 continuation bytes so &text[..end] is always a char boundary.
+        while end > 0 && (bytes[end] & 0xC0) == 0x80 {
+            end -= 1;
+        }
     }
 }
 
@@ -89,6 +89,10 @@ pub fn fit_author(text: &str) -> Option<String> {
             return Some(try_line("..."));
         }
         end -= 1;
+        // Snap past UTF-8 continuation bytes so &up[..end] is always a char boundary.
+        while end > 0 && (bytes[end] & 0xC0) == 0x80 {
+            end -= 1;
+        }
     }
 }
 
@@ -155,5 +159,29 @@ mod tests {
         let s = fit_author("   ").unwrap();
         // The user gets back what they typed (uppercased / unchanged for whitespace).
         assert_eq!(s, "-- BY     --");
+    }
+
+    #[test]
+    fn fit_title_multibyte_utf8_truncates_without_panicking() {
+        // 30 two-byte chars (60 UTF-8 bytes — within the 63-byte HeaderStringOverflow
+        // guard). Each char's `measure()` counts it as two glyph cells (one '?' per
+        // byte), so total width at 1× = 60 × 6 = 360 px ≫ 168 → truncation path.
+        // Before the UTF-8 boundary snap this panicked with "index ... is not a char
+        // boundary".
+        let multibyte: String = std::iter::repeat('á').take(30).collect();
+        assert_eq!(multibyte.len(), 60);
+        let (s, scale) = fit_title(&multibyte);
+        assert_eq!(scale, 1);
+        assert!(s.ends_with("..."));
+        assert!(measure(&s, 1) <= TITLE_PLATE_MAX_W);
+    }
+
+    #[test]
+    fn fit_author_multibyte_utf8_truncates_without_panicking() {
+        let multibyte: String = std::iter::repeat('ñ').take(30).collect();
+        let s = fit_author(&multibyte).unwrap();
+        assert!(s.starts_with("-- BY "));
+        assert!(s.ends_with(" --"));
+        assert!(measure(&s, 1) <= AUTHOR_LINE_MAX_W);
     }
 }

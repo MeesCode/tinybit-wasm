@@ -60,7 +60,7 @@ Rounded corners on the body are rasterized into the static frame PNG (no runtime
 
 ### Color budget
 
-The frame PNG only uses the listed solid fills, all chosen so the top 6 bits of each channel encode the color exactly. (Each channel byte ends in `00`.) This keeps the visible frame pixel-perfect after the encoder's low-2-bit steganography pass. The cover region keeps its existing top-4-bits preservation.
+The frame uses solid fills only. After the encoder's low-2-bit steganography pass, the visible channel values (top 6 bits) match the intended palette exactly — the low 2 bits of every fill pixel are overwritten by steg data, but the top 6 bits encode the color faithfully. Test assertions verify this with `& 0xFC` masks. The cover region keeps its existing top-4-bits preservation.
 
 ## Architecture
 

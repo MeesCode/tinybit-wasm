@@ -27,8 +27,8 @@ pub fn fill_rect(
     }
 }
 
-/// Draw a 1-pixel-thick stroke around the rect (x, y, w, h). The stroke sits
-/// inside the rect (i.e. uses x..x+w and y..y+h as the outer bounds).
+/// Draw an inset stroke `thickness` pixels thick around the rect (x, y, w, h).
+/// The stroke sits inside the rect (i.e. x..x+w and y..y+h are the outer bounds).
 pub fn stroke_rect(
     canvas: &mut [u8; CART_RGBA_LEN],
     x: i32, y: i32, w: i32, h: i32, thickness: i32,
@@ -53,11 +53,12 @@ const COLOR_WELL:      [u8; 3] = [0x0a, 0x22, 0x18];
 const COLOR_INNER:     [u8; 3] = [0x3a, 0x7a, 0x5c];
 const COLOR_PIN:       [u8; 3] = [0xd4, 0xa0, 0x2a];
 
-// 10×10 quarter-circle mask. `1` = inside the rounded body (keep), `0` = outside
-// (revert to background). Generated from the discrete formula
-//     inside iff (x + 0.5)² + (y + 0.5)² <= r²   with r = 10.
-// Indexed [y][x], with (0,0) at the corner. Symmetric — same mask is used at all
-// four corners with appropriate axis flips at the call site.
+// 10×10 quarter-circle mask for rounding body corners.
+// Indexed [y][x]: (0,0) is the outermost body-corner cell; (9,9) is the
+// innermost cell of the corner region where the rounded edge meets the
+// straight body. `0` = clip back to background, `1` = keep the body fill.
+// Approximates `keep iff (10 - x - 0.5)² + (10 - y - 0.5)² <= 100`. Symmetric —
+// applied to all four corners with axis flips at the call site.
 const CORNER_MASK: [[u8; 10]; 10] = [
     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
