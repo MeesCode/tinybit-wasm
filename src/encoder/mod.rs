@@ -4,6 +4,10 @@ pub mod header;
 pub mod image;
 pub mod png_io;
 pub mod steg;
+pub mod font_data;
+pub mod font;
+pub mod layout;
+pub mod frame;
 
 pub use header::HeaderOpts;
 
@@ -73,7 +77,7 @@ pub fn encode(
     out: &mut Vec<u8>,
 ) -> Result<(), EncError> {
     use crate::encoder::image::{
-        composite_cover, decode_128x128_rgba, decode_256x256_rgba, BUNDLED_FRAME, ImageError,
+        composite_cover, decode_128x128_rgba, decode_256x256_rgba, ImageError,
     };
     use crate::encoder::png_io::{encode_rgba, PngWriteError};
     use crate::encoder::steg;
@@ -102,15 +106,42 @@ pub fn encode(
         ImageError::Decode(m)        => EncError::SpritePng(m),
     })?;
 
-    // 3. Frame: override or bundled.
-    let frame_src: &[u8] = frame_override.unwrap_or(BUNDLED_FRAME);
-    decode_256x256_rgba(frame_src, canvas_buf).map_err(|e| match e {
-        ImageError::WrongSize { .. } => EncError::FrameSize,
-        ImageError::Decode(m)        => EncError::FramePng(m),
-    })?;
+    // 3. Frame: user override decodes a PNG into the canvas; otherwise we draw
+    //    the procedural default frame.
+    match frame_override {
+        Some(bytes) => {
+            decode_256x256_rgba(bytes, canvas_buf).map_err(|e| match e {
+                ImageError::WrongSize { .. } => EncError::FrameSize,
+                ImageError::Decode(m)        => EncError::FramePng(m),
+            })?;
+        }
+        None => {
+            crate::encoder::frame::draw_default_frame(canvas_buf);
+        }
+    }
 
     // 4. Composite cover onto the visible canvas (high bits).
     composite_cover(canvas_buf, cover_rgba_buf);
+
+    // 4b. Render the title plate text and the author line.
+    {
+        use crate::encoder::font::{measure, draw};
+        use crate::encoder::layout::{
+            fit_title, fit_author, TITLE_Y, AUTHOR_Y, TITLE_COLOR, AUTHOR_COLOR,
+        };
+        use crate::encoder::image::CART_W;
+
+        let (title_text, title_scale) = fit_title(opts.title);
+        let title_w = measure(&title_text, title_scale);
+        let title_x = (CART_W as i32 - title_w as i32) / 2;
+        draw(canvas_buf, &title_text, title_x, TITLE_Y, title_scale, TITLE_COLOR);
+
+        if let Some(author_line) = fit_author(opts.author) {
+            let aw = measure(&author_line, 1);
+            let ax = (CART_W as i32 - aw as i32) / 2;
+            draw(canvas_buf, &author_line, ax, AUTHOR_Y, 1, AUTHOR_COLOR);
+        }
+    }
 
     // 5. Pack the 146-byte header (CRC over the script).
     let header = pack(opts, script);
@@ -211,6 +242,24 @@ mod tests {
         assert_eq!(back_arr[canvas_idx]     & 0xF0, 10  & 0xF0);
         assert_eq!(back_arr[canvas_idx + 1] & 0xF0, 20  & 0xF0);
         assert_eq!(back_arr[canvas_idx + 2] & 0xF0, 30  & 0xF0);
+
+        // Title plate's top-left interior corner (just inside the 2-px dark border).
+        // Plate is (40, 24, 176, 30); inside the border starts at (42, 26).
+        // After steg the low 2 bits are clobbered, so compare against the top 6 bits
+        // of the plate color #e8d56a.
+        let plate_idx = (26 * crate::encoder::image::CART_W + 42) * 4;
+        assert_eq!(back_arr[plate_idx]     & 0xFC, 0xe8 & 0xFC);
+        assert_eq!(back_arr[plate_idx + 1] & 0xFC, 0xd5 & 0xFC);
+        assert_eq!(back_arr[plate_idx + 2] & 0xFC, 0x6a & 0xFC);
+
+        // Cover offset moved from (64, 60) to (64, 64) — sanity check that the
+        // pixel at the *old* offset (y=60) is now the dark screen-well color, not
+        // the cover's top-left (which is at y=64).
+        let old_y_idx = (60 * crate::encoder::image::CART_W + 64) * 4;
+        // Screen well is #0a2218 with top 6 bits = 0x08, 0x20, 0x18.
+        assert_eq!(back_arr[old_y_idx]     & 0xFC, 0x0a & 0xFC);
+        assert_eq!(back_arr[old_y_idx + 1] & 0xFC, 0x22 & 0xFC);
+        assert_eq!(back_arr[old_y_idx + 2] & 0xFC, 0x18 & 0xFC);
     }
 
     #[test]

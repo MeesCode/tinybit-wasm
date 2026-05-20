@@ -83,15 +83,22 @@ const wasi = {
   },
 };
 
-const importObject = { wasi_snapshot_preview1: new Proxy(wasi, {
-  get(t, k) {
-    if (k in t) return t[k];
-    return (...args) => {
-      console.error(`unimplemented WASI fn: ${String(k)}(${args.join(', ')})`);
-      return ERRNO_BADF;
-    };
+const importObject = {
+  wasi_snapshot_preview1: new Proxy(wasi, {
+    get(t, k) {
+      if (k in t) return t[k];
+      return (...args) => {
+        console.error(`unimplemented WASI fn: ${String(k)}(${args.join(', ')})`);
+        return ERRNO_BADF;
+      };
+    },
+  }),
+  // Engine launcher imports — no gallery in the smoke test.
+  env: {
+    js_gamecount: () => 0,
+    js_gameload:  () => {},
   },
-}) };
+};
 
 // ---- Instantiate ----------------------------------------------------------
 const wasmBytes = readFileSync(wasmPath);

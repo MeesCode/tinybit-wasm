@@ -4,16 +4,13 @@ use png::{ColorType, Decoder, Transformations};
 
 /// Cover image position in the 256×256 cartridge canvas.
 pub const COVER_X: usize = 64;
-pub const COVER_Y: usize = 60;
+pub const COVER_Y: usize = 64;
 pub const SCREEN_W: usize = 128;
 pub const SCREEN_H: usize = 128;
 pub const CART_W: usize = 256;
 pub const CART_H: usize = 256;
 pub const CART_RGBA_LEN: usize = CART_W * CART_H * 4;     // 262_144
 pub const SCREEN_RGBA_LEN: usize = SCREEN_W * SCREEN_H * 4; // 65_536
-
-/// Default frame, embedded at compile time.
-pub const BUNDLED_FRAME: &[u8] = include_bytes!("../../assets/cartridge3.png");
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ImageError {
@@ -144,13 +141,6 @@ mod tests {
     }
 
     #[test]
-    fn bundled_frame_is_valid_256x256() {
-        let mut buf = vec![0u8; CART_RGBA_LEN].into_boxed_slice();
-        let arr: &mut [u8; CART_RGBA_LEN] = buf.as_mut().try_into().unwrap();
-        decode_256x256_rgba(BUNDLED_FRAME, arr).unwrap();
-    }
-
-    #[test]
     fn composite_writes_cover_at_offset_and_leaves_rest_untouched() {
         let mut canvas = vec![0xAAu8; CART_RGBA_LEN].into_boxed_slice();
         let arr: &mut [u8; CART_RGBA_LEN] = canvas.as_mut().try_into().unwrap();
@@ -160,13 +150,13 @@ mod tests {
         }
         composite_cover(arr, &cover);
 
-        // Pixel (0,0) of canvas is outside the cover region (cover starts at (64,60)).
+        // Pixel (0,0) of canvas is outside the cover region (cover starts at (64,64)).
         assert_eq!(arr[0], 0xAA);
-        // Pixel (64,60) is top-left of cover region; corresponds to cover (0,0) = 0.
-        let canvas_idx = (60 * CART_W + 64) * 4;
+        // Pixel (64, 64) is top-left of cover region; corresponds to cover (0,0) = 0.
+        let canvas_idx = (64 * CART_W + 64) * 4;
         assert_eq!(arr[canvas_idx], 0);
-        // Pixel (65,60) -> cover (1,0) -> cover index 4 (=4 mod 256).
-        let canvas_idx2 = (60 * CART_W + 65) * 4;
+        // Pixel (65, 64) -> cover (1,0) -> cover index 4 (=4 mod 256).
+        let canvas_idx2 = (64 * CART_W + 65) * 4;
         assert_eq!(arr[canvas_idx2], 4);
     }
 }
