@@ -89,9 +89,11 @@ describe('PlayerRoute', () => {
 
     test('mode="gallery" shows the picker, then boots after picking', async () => {
         render(<PlayerRoute initial="gallery" />);
-        await waitFor(() => expect(screen.getByText(/Cart/i)).toBeInTheDocument());
+        // The gallery renders a card button whose accessible name contains the cart title.
+        // Use role+name so we don't collide with the page heading "Pick a cartridge".
+        const card = await screen.findByRole('button', { name: /Cart/ });
         expect(tb.start).not.toHaveBeenCalled();
-        await userEvent.click(screen.getByText(/Cart/i));
+        await userEvent.click(card);
         await waitFor(() => expect(tb.start).toHaveBeenCalled());
         expect(tb.feedCartridge).toHaveBeenCalled();
     });
