@@ -360,6 +360,17 @@ export function Editor() {
         setClearConfirmOpen(true);
     }, []);
 
+    const handleOpenPlayer = useCallback(() => {
+        frameLoopRef.current?.stop();
+        runtime?.tb.stop();
+        // Force a synchronous save so the player tab/route sees fresh state.
+        saveSketch(
+            { script: sketch.script, sprite: sketch.sprite, cover: sketch.cover, title: sketch.title, author: sketch.author },
+            (msg) => consoleAppend('warn', msg),
+        );
+        window.location.search = '?play=current';
+    }, [runtime, sketch.script, sketch.sprite, sketch.cover, sketch.title, sketch.author, consoleAppend]);
+
     const handleClearCancel = useCallback(() => {
         setClearConfirmOpen(false);
     }, []);
@@ -440,6 +451,7 @@ export function Editor() {
                 onOpen={handleOpenClick}
                 onDownload={handleDownload}
                 onResetEngine={handleResetEngine}
+                onOpenPlayer={handleOpenPlayer}
             />
             <input
                 ref={openInputRef}

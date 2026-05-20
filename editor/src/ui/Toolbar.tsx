@@ -14,6 +14,7 @@ export interface ToolbarProps {
     onOpen():    void;
     onDownload(): void;
     onResetEngine?(): void;
+    onOpenPlayer?(): void;
 }
 
 const barStyle: CSSProperties = {
@@ -64,6 +65,11 @@ export function Toolbar(p: ToolbarProps) {
             <button type="button" onClick={p.onClear} style={neutralStyle} aria-label="Clear editor">
                 🗑 Clear
             </button>
+            {p.onOpenPlayer && (
+                <button type="button" onClick={p.onOpenPlayer} style={neutralStyle} aria-label="Open in player">
+                    📱 Player
+                </button>
+            )}
             <button type="button" onClick={p.onGallery} style={neutralStyle} aria-label="Gallery">
                 🎮 Gallery
             </button>
