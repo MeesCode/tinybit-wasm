@@ -10,10 +10,9 @@ import { makeFrameLoop, type FrameLoop, type FrameLoopState } from './engine/fra
 import { BUTTONS, PREVENT_DEFAULT_KEYS } from './engine/tinybit';
 import { formatLuaError, parseLuaError, type LuaError } from './engine/luaError';
 import type { LuaErrorMarkerData } from './editor/luaErrorHighlight';
-import { EncodeError } from './engine/encoder';
 import { DecodeError } from './engine/decoder';
 import { readPngSize } from './lib/png';
-import { getPlaceholderCover, getPlaceholderSprite } from './engine/placeholders';
+import { buildCartridge } from './engine/buildCartridge';
 import { Toolbar } from './ui/Toolbar';
 import { EditorPane, type EditorTab } from './ui/EditorPane';
 import { CodeEditor } from './editor/CodeEditor';
@@ -283,26 +282,21 @@ export function App() {
 
     // Encode / play / download ───────────────────────────────────────────────
 
-    const buildCartridge = useCallback(async (): Promise<Uint8Array | null> => {
+    const buildCart = useCallback(async (): Promise<Uint8Array | null> => {
         if (!runtime || !runtime.encoderAvailable) {
             consoleAppend('error', 'Encoder not available in this WASM build.');
             return null;
         }
-        const sprite = sketch.sprite ?? await getPlaceholderSprite();
-        const cover  = sketch.cover  ?? await getPlaceholderCover();
-        try {
-            return runtime.enc.encode({
-                script: new TextEncoder().encode(sketch.script),
-                sprite,
-                cover,
-                title:  sketch.title  || 'untitled',
-                author: sketch.author || '',
-            });
-        } catch (err) {
-            if (err instanceof EncodeError) consoleAppend('error', `Encode failed (${err.code}): ${err.message}`);
-            else consoleAppend('error', String(err));
-            return null;
-        }
+        const result = await buildCartridge(runtime.enc, {
+            script: sketch.script,
+            sprite: sketch.sprite,
+            cover:  sketch.cover,
+            title:  sketch.title,
+            author: sketch.author,
+        });
+        if (result.ok) return result.bytes;
+        consoleAppend('error', result.error);
+        return null;
     }, [runtime, sketch.script, sketch.sprite, sketch.cover, sketch.title, sketch.author, consoleAppend]);
 
     const handlePlay = useCallback(async () => {
@@ -312,7 +306,7 @@ export function App() {
         // Tear down any in-flight Score-tab preview so it can't race the game
         // for the engine's audio channels.
         rt.preview.stop();
-        const bytes = await buildCartridge();
+        const bytes = await buildCart();
         if (!bytes) return;
         setLuaErrorMarker(null);
         try {
@@ -334,7 +328,7 @@ export function App() {
                 consoleAppend('error', err instanceof Error ? err.message : String(err));
             }
         }
-    }, [runtime, buildCartridge, consoleAppend]);
+    }, [runtime, buildCart, consoleAppend]);
 
     const handleStop = useCallback(() => {
         frameLoopRef.current?.stop();
@@ -342,7 +336,7 @@ export function App() {
     }, [runtime]);
 
     const handleDownload = useCallback(async () => {
-        const bytes = await buildCartridge();
+        const bytes = await buildCart();
         if (!bytes) return;
         const safe = (sketch.title || 'cartridge').replace(/[^A-Za-z0-9._-]+/g, '_') || 'cartridge';
         const blob = new Blob([bytes as BlobPart], { type: 'image/png' });
@@ -354,7 +348,7 @@ export function App() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-    }, [buildCartridge, sketch.title]);
+    }, [buildCart, sketch.title]);
 
     const handleResetEngine = useCallback(() => {
         if (!runtime) return;
