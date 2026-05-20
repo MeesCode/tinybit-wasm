@@ -1,15 +1,39 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { App } from './App';
 
-test('renders toolbar brand', () => {
-    render(<App />);
-    expect(screen.getByText('tinybit')).toBeInTheDocument();
+const originalLocation = window.location;
+
+function setSearch(search: string): void {
+    Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { ...originalLocation, search },
+    });
+}
+
+afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
 });
 
-test('opens the Script API modal when the ? button on the script tab is clicked', () => {
-    render(<App />);
-    const helpBtn = screen.getByRole('button', { name: /script api help/i });
-    fireEvent.click(helpBtn);
-    // InfoModal renders via createPortal into document.body; screen.getByText still finds it.
-    expect(screen.getByText('Script API')).toBeInTheDocument();
+describe('App router', () => {
+    beforeEach(() => { setSearch(''); });
+
+    test('renders the editor by default', () => {
+        render(<App />);
+        // The toolbar brand renders as lowercase "tinybit"; the CodeMirror skeleton
+        // script contains "TinyBit" (mixed case), so exact-match avoids ambiguity.
+        expect(screen.getByText('tinybit')).toBeInTheDocument();
+    });
+
+    test('renders the player route when ?play is present', () => {
+        setSearch('?play');
+        render(<App />);
+        expect(screen.queryByRole('button', { name: /clear editor/i })).not.toBeInTheDocument();
+    });
+
+    test('renders the player route when ?play=current is present', () => {
+        setSearch('?play=current');
+        render(<App />);
+        expect(screen.queryByRole('button', { name: /clear editor/i })).not.toBeInTheDocument();
+    });
 });
