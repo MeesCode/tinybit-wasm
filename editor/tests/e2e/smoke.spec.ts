@@ -9,7 +9,7 @@ const WASM_PATH = join(__dirname, '..', '..', 'public', 'tinybit_wasm.wasm');
 
 test('boots and renders the editor shell', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('button', { name: /play/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /download/i })).toBeVisible();
 });
 
@@ -34,7 +34,7 @@ test('encode + play paints a non-empty canvas', async ({ page }) => {
     await page.keyboard.press('Control+A');
     await page.keyboard.type('function _draw()\n  pset(10, 10, 0xFFFF)\nend\n', { delay: 1 });
 
-    await page.getByRole('button', { name: /play/i }).click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
     // Allow several frames to elapse.
     await page.waitForTimeout(200);
 

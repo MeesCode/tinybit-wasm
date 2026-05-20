@@ -65,7 +65,34 @@ describe('Toolbar', () => {
         expect(onClear).toHaveBeenCalledOnce();
     });
 
-    test('renders a Gallery button between Clear and Open and fires onGallery', async () => {
+    test('renders a Player button between Clear and Gallery and fires onOpenPlayer', async () => {
+        const onOpenPlayer = vi.fn();
+        render(
+            <Toolbar
+                engineState="idle"
+                canPlay={true}
+                onPlay={() => {}}
+                onStop={() => {}}
+                onClear={() => {}}
+                onGallery={() => {}}
+                onOpen={() => {}}
+                onDownload={() => {}}
+                onOpenPlayer={onOpenPlayer}
+            />,
+        );
+        const buttons = screen.getAllByRole('button');
+        const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
+        const clearIdx   = labels.findIndex((l) => /clear/i.test(l));
+        const playerIdx  = labels.findIndex((l) => /open in player/i.test(l));
+        const galleryIdx = labels.findIndex((l) => /gallery/i.test(l));
+        expect(playerIdx).toBeGreaterThan(clearIdx);
+        expect(playerIdx).toBeLessThan(galleryIdx);
+
+        await userEvent.click(screen.getByRole('button', { name: /open in player/i }));
+        expect(onOpenPlayer).toHaveBeenCalledOnce();
+    });
+
+    test('renders Player and Gallery buttons between Clear and Open', async () => {
         const onGallery = vi.fn();
         render(
             <Toolbar
@@ -77,14 +104,17 @@ describe('Toolbar', () => {
                 onGallery={onGallery}
                 onOpen={() => {}}
                 onDownload={() => {}}
+                onOpenPlayer={() => {}}
             />,
         );
         const buttons = screen.getAllByRole('button');
         const labels = buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent ?? '');
         const clearIdx   = labels.findIndex((l) => /clear/i.test(l));
-        const openIdx    = labels.findIndex((l) => /open/i.test(l));
+        const playerIdx  = labels.findIndex((l) => /open in player/i.test(l));
         const galleryIdx = labels.findIndex((l) => /gallery/i.test(l));
-        expect(galleryIdx).toBeGreaterThan(clearIdx);
+        const openIdx    = labels.findIndex((l) => /^open$/i.test(l));
+        expect(clearIdx).toBeLessThan(playerIdx);
+        expect(playerIdx).toBeLessThan(galleryIdx);
         expect(galleryIdx).toBeLessThan(openIdx);
 
         await userEvent.click(screen.getByRole('button', { name: /gallery/i }));

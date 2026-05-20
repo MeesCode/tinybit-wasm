@@ -43,7 +43,7 @@ test.describe('spritesheet editor', () => {
         });
 
         // Hit Play.
-        await page.getByRole('button', { name: /play/i }).click();
+        await page.getByRole('button', { name: 'Play', exact: true }).click();
         await page.waitForTimeout(250);  // let a handful of frames elapse
 
         // Read display pixel (5,5). 128×128 canvas may be displayed at a larger CSS size,
