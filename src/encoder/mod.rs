@@ -6,6 +6,7 @@ pub mod png_io;
 pub mod steg;
 pub mod font_data;
 pub mod font;
+pub mod layout;
 
 pub use header::HeaderOpts;
 

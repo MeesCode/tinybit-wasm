@@ -1,0 +1,91 @@
+//! Text-layout helpers for the cartridge title plate and author line.
+//! Pure functions — no canvas mutation.
+
+use crate::encoder::font::measure;
+
+/// Title plate is 176 px wide minus 4 px padding each side.
+pub const TITLE_PLATE_MAX_W: u32 = 168;
+/// Author line is centered under the screen, allowed to use the screen-well width + a bit.
+pub const AUTHOR_LINE_MAX_W: u32 = 200;
+/// Top y of the 2×-scale title glyph row. (Plate is y=24..53; centered: (24+53+1)/2 - 8 = 31.)
+pub const TITLE_Y: i32 = 31;
+/// Top y of the 1×-scale author glyph row.
+pub const AUTHOR_Y: i32 = 206;
+/// Dark green that contrasts with the yellow title plate.
+pub const TITLE_COLOR: [u8; 3] = [10, 34, 24];
+/// Light green that reads on the dark background below the screen.
+pub const AUTHOR_COLOR: [u8; 3] = [122, 184, 156];
+
+/// Fit a title to the plate. Returns the rendered text (already uppercase,
+/// possibly truncated) and the scale (1 or 2) to render at.
+pub fn fit_title(text: &str) -> (String, u8) {
+    let up: String = text.to_ascii_uppercase();
+    if measure(&up, 2) <= TITLE_PLATE_MAX_W {
+        return (up, 2);
+    }
+    if measure(&up, 1) <= TITLE_PLATE_MAX_W {
+        return (up, 1);
+    }
+    (truncate_to_fit(&up, TITLE_PLATE_MAX_W, 1), 1)
+}
+
+/// Iteratively drop the last char and append "..." until the result fits.
+fn truncate_to_fit(text: &str, max_w: u32, scale: u8) -> String {
+    // Greedy: take the longest prefix such that prefix + "..." fits.
+    let bytes = text.as_bytes();
+    let ellipsis = "...";
+    // Start from the longest possible prefix and shrink.
+    let mut end = bytes.len();
+    loop {
+        let mut candidate = String::with_capacity(end + 3);
+        candidate.push_str(&text[..end]);
+        candidate.push_str(ellipsis);
+        if measure(&candidate, scale) <= max_w {
+            return candidate;
+        }
+        if end == 0 {
+            // Even just "..." doesn't fit — should never happen with our budgets,
+            // but fall back to bare ellipsis.
+            return ellipsis.to_string();
+        }
+        end -= 1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fit_title_short_uses_2x() {
+        let (s, scale) = fit_title("My Game");
+        assert_eq!(s, "MY GAME");
+        assert_eq!(scale, 2);
+    }
+
+    #[test]
+    fn fit_title_medium_falls_back_to_1x() {
+        // 14 chars × 12 px (2x) = 168 — that exactly fits. 15 chars × 12 = 180, doesn't.
+        let (s, scale) = fit_title("123456789012345"); // 15 chars
+        assert_eq!(s, "123456789012345");
+        assert_eq!(scale, 1);
+    }
+
+    #[test]
+    fn fit_title_long_truncates_with_ellipsis() {
+        // 30 chars at 1x = 180 px > 168. Should truncate with "..." to fit.
+        let long = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"; // 30 chars
+        let (s, scale) = fit_title(long);
+        assert_eq!(scale, 1);
+        assert!(s.ends_with("..."));
+        assert!(measure(&s, 1) <= TITLE_PLATE_MAX_W);
+        // We kept *some* leading characters.
+        assert!(s.starts_with("ABCDEFG"));
+    }
+
+    #[test]
+    fn fit_title_uppercases_lowercase_input() {
+        let (s, _) = fit_title("hello");
+        assert_eq!(s, "HELLO");
+    }
+}
