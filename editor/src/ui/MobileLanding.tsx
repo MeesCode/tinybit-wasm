@@ -68,7 +68,8 @@ const linkStyle: CSSProperties = {
     fontSize: 13,
     textDecoration: 'underline',
     cursor: 'pointer',
-    padding: 4,
+    padding: '12px 8px',
+    minHeight: 44,
 };
 
 export function MobileLanding({ onOpenEditor }: MobileLandingProps) {
@@ -85,7 +86,7 @@ export function MobileLanding({ onOpenEditor }: MobileLandingProps) {
                 style={playButtonStyle}
                 aria-label="Play games"
             >
-                ▶ Play games
+                <span aria-hidden="true">▶</span> Play games
             </button>
             <div style={captionStyle}>Editing works best on a bigger screen.</div>
             <button
@@ -94,7 +95,7 @@ export function MobileLanding({ onOpenEditor }: MobileLandingProps) {
                 style={linkStyle}
                 aria-label="Open editor anyway"
             >
-                Open editor anyway →
+                Open editor anyway <span aria-hidden="true">→</span>
             </button>
         </div>
     );

@@ -1,15 +1,27 @@
-import { describe, test, expect, vi, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MobileLanding } from './MobileLanding';
 
 const originalLocation = window.location;
 
-afterEach(() => {
+function stubLocationSearch(setter: (v: string) => void): void {
     Object.defineProperty(window, 'location', {
         configurable: true,
-        value: originalLocation,
+        value: {
+            ...originalLocation,
+            get search() { return ''; },
+            set search(v: string) { setter(v); },
+        },
     });
+}
+
+beforeEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+});
+
+afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
 });
 
 describe('MobileLanding', () => {
@@ -22,14 +34,7 @@ describe('MobileLanding', () => {
 
     test('clicking Play navigates to ?play via location.search', async () => {
         const setSearch = vi.fn();
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: {
-                ...originalLocation,
-                get search() { return ''; },
-                set search(v: string) { setSearch(v); },
-            },
-        });
+        stubLocationSearch(setSearch);
         render(<MobileLanding onOpenEditor={() => {}} />);
         await userEvent.click(screen.getByRole('button', { name: /play games/i }));
         expect(setSearch).toHaveBeenCalledWith('?play');
@@ -37,14 +42,7 @@ describe('MobileLanding', () => {
 
     test('clicking the escape link calls onOpenEditor and does not navigate', async () => {
         const setSearch = vi.fn();
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: {
-                ...originalLocation,
-                get search() { return ''; },
-                set search(v: string) { setSearch(v); },
-            },
-        });
+        stubLocationSearch(setSearch);
         const onOpenEditor = vi.fn();
         render(<MobileLanding onOpenEditor={onOpenEditor} />);
         await userEvent.click(screen.getByRole('button', { name: /open editor anyway/i }));
