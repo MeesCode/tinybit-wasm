@@ -32,13 +32,17 @@ export interface CodeEditorProps {
     onChange(v: string): void;
     extraExtensions?: Extension[];
     luaErrorMarker?: LuaErrorMarkerData | null;
+    /** Called once with the EditorView immediately after it is constructed. */
+    onReady?(view: EditorView): void;
 }
 
-export function CodeEditor({ value, onChange, extraExtensions, luaErrorMarker }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, extraExtensions, luaErrorMarker, onReady }: CodeEditorProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
+    const onReadyRef = useRef(onReady);
+    onReadyRef.current = onReady;
 
     useEffect(() => {
         if (!hostRef.current) return;
@@ -68,6 +72,7 @@ export function CodeEditor({ value, onChange, extraExtensions, luaErrorMarker }:
         });
         const view = new EditorView({ state, parent: hostRef.current });
         viewRef.current = view;
+        onReadyRef.current?.(view);
         return () => { view.destroy(); viewRef.current = null; };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
