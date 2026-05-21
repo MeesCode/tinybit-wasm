@@ -42,7 +42,7 @@ describe('ScriptApiModal — sidebar', () => {
         open();
         fireEvent.click(screen.getByRole('tab', { name: /^Drawing\b/ }));
         expect(screen.getByText('cls')).toBeInTheDocument();
-        expect(screen.getByText('sprite')).toBeInTheDocument();
+        expect(screen.getByText('sprite (cell)')).toBeInTheDocument();
         expect(screen.queryByText('_draw')).toBeNull();
     });
 
@@ -58,8 +58,8 @@ describe('ScriptApiModal — entry rendering', () => {
     it('renders parameters when an entry has params', () => {
         open();
         fireEvent.click(screen.getByRole('tab', { name: /^Drawing\b/ }));
-        // sprite has params [n, "x, y"]
-        const card = screen.getByText('sprite').closest('article')!;
+        // sprite (cell) has params [n, "x, y"]
+        const card = screen.getByText('sprite (cell)').closest('article')!;
         expect(within(card).getByText(/parameters/i)).toBeInTheDocument();
         expect(within(card).getByText('n')).toBeInTheDocument();
     });
@@ -73,7 +73,7 @@ describe('ScriptApiModal — entry rendering', () => {
     it('renders a tip block when provided', () => {
         open();
         fireEvent.click(screen.getByRole('tab', { name: /^Drawing\b/ }));
-        const card = screen.getByText('sprite').closest('article')!;
+        const card = screen.getByText('draw_polygon').closest('article')!;
         expect(within(card).getByText(/tip/i)).toBeInTheDocument();
     });
 
@@ -92,7 +92,8 @@ describe('ScriptApiModal — search', () => {
         open();
         fireEvent.click(screen.getByRole('tab', { name: /^Drawing\b/ }));
         fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sprite' } });
-        expect(screen.getByText('sprite')).toBeInTheDocument();
+        expect(screen.getByText('sprite (cell)')).toBeInTheDocument();
+        expect(screen.getByText('sprite (region)')).toBeInTheDocument();
         expect(screen.queryByText('cls')).toBeNull();
     });
 
@@ -168,5 +169,14 @@ describe('ScriptApiModal — Insert button', () => {
         render(<ScriptApiModal open={true} onClose={onClose} onInsert={onInsert} />);
         fireEvent.click(screen.getByRole('button', { name: /^insert _draw at cursor$/i }));
         expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('strips the `-> ReturnType` suffix from inserted signatures', () => {
+        const onInsert = vi.fn();
+        render(<ScriptApiModal open={true} onClose={() => {}} onInsert={onInsert} />);
+        fireEvent.click(screen.getByRole('tab', { name: /^Misc\b/ }));
+        fireEvent.click(screen.getByRole('button', { name: /^insert random at cursor$/i }));
+        // random's signature is `random(min, max) -> int`; the inserted text should drop the return type.
+        expect(onInsert).toHaveBeenCalledWith('random(min, max)');
     });
 });

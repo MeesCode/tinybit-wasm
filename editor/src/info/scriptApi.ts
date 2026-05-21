@@ -61,16 +61,29 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
                 example: 'cls()',
             },
             {
-                name: 'sprite',
-                signature: 'sprite(n, x, y) | sprite(sx, sy, sw, sh, tx, ty, tw, th[, rotation])',
-                description: 'Draw a piece of the spritesheet onto the display. The short form copies the n-th 8×8 cell to (x, y). The long form copies any source rectangle from the sheet to any target rectangle, with an optional rotation.',
+                name: 'sprite (cell)',
+                signature: 'sprite(n, x, y)',
+                description: 'Draw one 8×8 cell from the spritesheet at (x, y).',
                 params: [
                     { name: 'n', description: 'Cell index 0–255. The sheet is a 16×16 grid of 8×8 cells: cell = row * 16 + col.' },
                     { name: 'x, y', description: 'Top-left target position in pixels.' },
                 ],
                 example: 'sprite(0, 60, 60)',
-                tip: 'The short form is the easy way in. Reach for the long form when you need to draw a region that is not 8×8, or to rotate.',
                 insert: 'sprite(n, x, y)',
+            },
+            {
+                name: 'sprite (region)',
+                signature: 'sprite(sx, sy, sw, sh, tx, ty, tw, th[, rotation])',
+                description: 'Copy any rectangle from the spritesheet to any rectangle on the display, with an optional rotation. Use this for sprites bigger or smaller than one cell, or to flip and rotate.',
+                params: [
+                    { name: 'sx, sy', description: 'Top-left of the source rectangle on the spritesheet, in pixels.' },
+                    { name: 'sw, sh', description: 'Source rectangle width and height in pixels.' },
+                    { name: 'tx, ty', description: 'Top-left of the target rectangle on the display, in pixels.' },
+                    { name: 'tw, th', description: 'Target rectangle width and height in pixels. Different from sw/sh stretches the sprite.' },
+                    { name: 'rotation', description: 'Optional. Rotation in degrees, applied around the centre of the target rectangle.' },
+                ],
+                example: 'sprite(0, 0, 16, 16, 56, 56, 16, 16, 90)',
+                insert: 'sprite(sx, sy, sw, sh, tx, ty, tw, th)',
             },
             {
                 name: 'duplicate',
@@ -258,8 +271,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
             {
                 name: 'sleep',
                 signature: 'sleep(ms)',
-                description: 'Pause the engine for ms milliseconds. Blocks until the time has passed.',
-                tip: 'Avoid sleep() inside _draw — it freezes the whole frame loop.',
+                description: 'Skip the _draw callback for ms milliseconds. Input, audio, and rendering keep running normally — only your draw code pauses.',
             },
             {
                 name: 'peek',
@@ -289,15 +301,6 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
         items: [
             { name: 'TB_SCREEN_WIDTH',  signature: 'TB_SCREEN_WIDTH = 128',  description: 'Display width in pixels.' },
             { name: 'TB_SCREEN_HEIGHT', signature: 'TB_SCREEN_HEIGHT = 128', description: 'Display height in pixels.' },
-            {
-                name: 'SINE',
-                signature: 'SINE',
-                description: 'Waveform constant. Available for API symmetry, but the engine actually picks each voice\'s waveform from the ABC V: header name.',
-                tip: 'Use V:SINE / V:SAW / V:SQUARE / V:NOISE inside your ABC score to choose a per-voice waveform.',
-            },
-            { name: 'SAW',    signature: 'SAW',    description: 'Waveform constant. See SINE for how the engine actually picks a waveform.' },
-            { name: 'SQUARE', signature: 'SQUARE', description: 'Waveform constant. See SINE for how the engine actually picks a waveform.' },
-            { name: 'NOISE',  signature: 'NOISE',  description: 'Waveform constant. See SINE for how the engine actually picks a waveform.' },
         ],
     },
 ];

@@ -224,8 +224,13 @@ interface EntryProps {
     onClose: () => void;
 }
 
+// Strip a trailing `-> ReturnType` from a signature so it pastes as runnable code.
+function stripReturnType(signature: string): string {
+    return signature.replace(/\s*->\s*\S+\s*$/, '');
+}
+
 function Entry({ entry, onInsert, onClose }: EntryProps) {
-    const insertText = entry.insert ?? entry.signature;
+    const insertText = entry.insert ?? stripReturnType(entry.signature);
 
     function handleInsert() {
         if (!onInsert) return;

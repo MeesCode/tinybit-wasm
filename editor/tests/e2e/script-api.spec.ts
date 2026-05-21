@@ -46,11 +46,12 @@ test.describe('Script API modal', () => {
         await expect(dialog.getByRole('tab', { name: /^Hooks\b/ })).toHaveCount(0);
         await expect(dialog.getByRole('tab', { name: /^Color\b/ })).toHaveCount(0);
 
-        // Drawing tab survives and the sprite entry is visible.
+        // Drawing tab survives and both sprite entries are visible.
         await expect(dialog.getByRole('tab', { name: /^Drawing\b/ })).toBeVisible();
-        await expect(dialog.getByText('sprite', { exact: true })).toBeVisible();
+        await expect(dialog.getByText('sprite (cell)', { exact: true })).toBeVisible();
+        await expect(dialog.getByText('sprite (region)', { exact: true })).toBeVisible();
 
-        // The Insert button for sprite is reachable.
-        await expect(dialog.getByRole('button', { name: /^insert sprite at cursor$/i })).toBeVisible();
+        // The Insert button for the cell form is reachable.
+        await expect(dialog.getByRole('button', { name: /^insert sprite \(cell\) at cursor$/i })).toBeVisible();
     });
 });
