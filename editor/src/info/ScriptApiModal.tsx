@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type Keyboard
 import { InfoModal } from './InfoModal';
 import { SCRIPT_API_SECTIONS, type ApiEntry, type ApiSection } from './scriptApi';
 
-const layout: CSSProperties = { display: 'flex', height: '100%', minHeight: 0, gap: 0 };
+const layout: CSSProperties = { display: 'flex', height: '100%', minHeight: 0 };
 const rail: CSSProperties = {
     width: 200, flex: '0 0 200px',
     borderRight: '1px solid #ECECF0',
@@ -92,6 +92,8 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
     const [query, setQuery] = useState('');
     const [activeTitle, setActiveTitle] = useState<string>(SCRIPT_API_SECTIONS[0]?.title ?? '');
     const searchRef = useRef<HTMLInputElement | null>(null);
+    const tabListRef = useRef<HTMLDivElement | null>(null);
+    const shouldFocusActiveTab = useRef(false);
 
     useEffect(() => {
         if (open) {
@@ -110,21 +112,34 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
         }
     }, [filtered, activeTitle]);
 
+    // Focus the active tab button after keyboard-driven selection.
+    useEffect(() => {
+        if (!shouldFocusActiveTab.current) return;
+        shouldFocusActiveTab.current = false;
+        const btn = tabListRef.current?.querySelector<HTMLButtonElement>('[role="tab"][tabindex="0"]');
+        btn?.focus();
+    });
+
     const active = filtered.find((s) => s.title === activeTitle) ?? filtered[0];
+
+    function activateTab(title: string) {
+        shouldFocusActiveTab.current = true;
+        setActiveTitle(title);
+    }
 
     function onTabKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             const delta = e.key === 'ArrowDown' ? 1 : -1;
             const next = filtered[(index + delta + filtered.length) % filtered.length];
-            if (next) setActiveTitle(next.title);
+            if (next) activateTab(next.title);
         } else if (e.key === 'Home') {
             e.preventDefault();
-            if (filtered[0]) setActiveTitle(filtered[0].title);
+            if (filtered[0]) activateTab(filtered[0].title);
         } else if (e.key === 'End') {
             e.preventDefault();
             const last = filtered[filtered.length - 1];
-            if (last) setActiveTitle(last.title);
+            if (last) activateTab(last.title);
         }
     }
 
@@ -144,12 +159,12 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
                             style={searchInput}
                         />
                     </div>
-                    <div role="tablist" aria-label="Script API categories" style={tabList}>
+                    <div ref={tabListRef} role="tablist" aria-label="Script API categories" style={tabList}>
                         {filtered.map((s, i) => {
-                            const isActive = active && s.title === active.title;
+                            const isActive = active != null && s.title === active.title;
                             const tabId = `script-api-tab-${s.title.toLowerCase()}`;
-                            const total = SCRIPT_API_SECTIONS.find((x) => x.title === s.title)?.items.length ?? s.matches.length;
-                            const showRatio = query.trim().length > 0 && s.matches.length !== total;
+                            const total = s.items.length;
+                            const showRatio = s.matches.length !== total;
                             return (
                                 <button
                                     key={s.title}
@@ -180,13 +195,13 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
                         <>
                             <h2 style={paneHeading}>{active.title}</h2>
                             {active.matches.length === 0 ? (
-                                <div style={emptyState}>No matches for &ldquo;{query}&rdquo; in {active.title}. Try another category.</div>
+                                <div role="status" aria-live="polite" style={emptyState}>No matches for &ldquo;{query}&rdquo; in {active.title}. Try another category.</div>
                             ) : (
                                 active.matches.map((e) => <Entry key={e.name} entry={e} />)
                             )}
                         </>
                     ) : (
-                        <div style={emptyState}>No matches for &ldquo;{query}&rdquo;.</div>
+                        <div role="status" aria-live="polite" style={emptyState}>No matches for &ldquo;{query}&rdquo;.</div>
                     )}
                 </div>
             </div>
