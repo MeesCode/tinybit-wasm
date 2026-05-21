@@ -70,6 +70,14 @@ export function Editor() {
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
     const editorViewRef = useRef<EditorView | null>(null);
+    useEffect(() => {
+        // CodeEditor only mounts while the script tab is active.
+        // When the user leaves the tab, the view is destroyed — drop our ref
+        // so Insert from a still-open modal can't dispatch to a dead view.
+        if (activeTab !== 'script') {
+            editorViewRef.current = null;
+        }
+    }, [activeTab]);
     const canvasRef = useRef<CanvasHandle | null>(null);
     const openInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -537,6 +545,9 @@ export function Editor() {
                         changes: { from, to, insert: text },
                         selection: { anchor: from + text.length },
                     });
+                    // Defer focus so React's state flush can unmount the modal before we move
+                    // focus to the editor — otherwise the modal's Escape-key listener and
+                    // focus styling can fight the editor for the caret.
                     queueMicrotask(() => view.focus());
                 }}
             />
