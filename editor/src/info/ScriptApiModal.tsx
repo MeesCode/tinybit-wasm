@@ -61,6 +61,12 @@ const tipBlock: CSSProperties = {
     padding: '6px 10px', marginTop: 4,
 };
 const emptyState: CSSProperties = { fontSize: 13, color: '#6B6B76', padding: '40px 0', textAlign: 'center' };
+const insertBtn: CSSProperties = {
+    border: '1px solid #ECECF0', background: '#FFFFFF', color: '#ED225D',
+    fontSize: 12, fontWeight: 600, lineHeight: '20px',
+    padding: '2px 10px', borderRadius: 4, cursor: 'pointer',
+    marginLeft: 'auto',
+};
 
 interface FilteredSection extends ApiSection {
     matches: ApiEntry[];
@@ -86,9 +92,10 @@ function filterSections(query: string): FilteredSection[] {
 export interface ScriptApiModalProps {
     open: boolean;
     onClose(): void;
+    onInsert?(text: string): void;
 }
 
-export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
+export function ScriptApiModal({ open, onClose, onInsert }: ScriptApiModalProps) {
     const [query, setQuery] = useState('');
     const [activeTitle, setActiveTitle] = useState<string>(SCRIPT_API_SECTIONS[0]?.title ?? '');
     const searchRef = useRef<HTMLInputElement | null>(null);
@@ -197,7 +204,9 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
                             {active.matches.length === 0 ? (
                                 <div role="status" aria-live="polite" style={emptyState}>No matches for &ldquo;{query}&rdquo; in {active.title}. Try another category.</div>
                             ) : (
-                                active.matches.map((e) => <Entry key={e.name} entry={e} />)
+                                active.matches.map((e) => (
+                                    <Entry key={e.name} entry={e} onInsert={onInsert} onClose={onClose} />
+                                ))
                             )}
                         </>
                     ) : (
@@ -209,12 +218,36 @@ export function ScriptApiModal({ open, onClose }: ScriptApiModalProps) {
     );
 }
 
-function Entry({ entry }: { entry: ApiEntry }) {
+interface EntryProps {
+    entry: ApiEntry;
+    onInsert?: (text: string) => void;
+    onClose: () => void;
+}
+
+function Entry({ entry, onInsert, onClose }: EntryProps) {
+    const insertText = entry.insert ?? entry.signature;
+
+    function handleInsert() {
+        if (!onInsert) return;
+        onInsert(insertText);
+        onClose();
+    }
+
     return (
         <article style={entryCard}>
             <div style={entryHead}>
                 <span style={entryName}>{entry.name}</span>
                 <span style={entrySig}>{entry.signature}</span>
+                {onInsert && (
+                    <button
+                        type="button"
+                        style={insertBtn}
+                        onClick={handleInsert}
+                        aria-label={`Insert ${entry.name} at cursor`}
+                    >
+                        Insert
+                    </button>
+                )}
             </div>
             <div style={entryDesc}>{entry.description}</div>
             {entry.params && entry.params.length > 0 && (

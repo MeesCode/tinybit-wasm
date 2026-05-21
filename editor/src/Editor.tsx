@@ -16,6 +16,7 @@ import { buildCartridge } from './engine/buildCartridge';
 import { Toolbar } from './ui/Toolbar';
 import { EditorPane, type EditorTab } from './ui/EditorPane';
 import { CodeEditor } from './editor/CodeEditor';
+import { EditorView } from '@codemirror/view';
 import { CartridgeTab } from './ui/CartridgeTab';
 import { AltEditorTab } from './ui/AltEditorTab';
 import { ScoreTab } from './score/ScoreTab';
@@ -68,6 +69,7 @@ export function Editor() {
     const galleryLoadedRef = useRef(false);
     const dragDepthRef = useRef(0);
     const frameLoopRef = useRef<FrameLoop | null>(null);
+    const editorViewRef = useRef<EditorView | null>(null);
     const canvasRef = useRef<CanvasHandle | null>(null);
     const openInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -473,6 +475,7 @@ export function Editor() {
                                     onChange={sketch.setScript}
                                     extraExtensions={[scoreHoverExtension]}
                                     luaErrorMarker={luaErrorMarker}
+                                    onReady={(view) => { editorViewRef.current = view; }}
                                 />
                                 <HelpButton
                                     onClick={() => setScriptHelpOpen(true)}
@@ -523,7 +526,20 @@ export function Editor() {
                 onPick={handleGalleryPick}
                 onCancel={handleGalleryCancel}
             />
-            <ScriptApiModal open={scriptHelpOpen} onClose={() => setScriptHelpOpen(false)} />
+            <ScriptApiModal
+                open={scriptHelpOpen}
+                onClose={() => setScriptHelpOpen(false)}
+                onInsert={(text) => {
+                    const view = editorViewRef.current;
+                    if (!view) return;
+                    const { from, to } = view.state.selection.main;
+                    view.dispatch({
+                        changes: { from, to, insert: text },
+                        selection: { anchor: from + text.length },
+                    });
+                    queueMicrotask(() => view.focus());
+                }}
+            />
         </div>
     );
 }

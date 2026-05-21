@@ -130,3 +130,43 @@ describe('ScriptApiModal — keyboard navigation', () => {
         expect(annotationsTab).toHaveAttribute('aria-selected', 'true');
     });
 });
+
+describe('ScriptApiModal — Insert button', () => {
+    it('does not render Insert buttons when onInsert is not provided', () => {
+        render(<ScriptApiModal open={true} onClose={() => {}} />);
+        expect(screen.queryByRole('button', { name: /^insert .* at cursor$/i })).toBeNull();
+    });
+
+    it('renders an Insert button per entry when onInsert is provided', () => {
+        render(<ScriptApiModal open={true} onClose={() => {}} onInsert={() => {}} />);
+        // On the default Hooks tab: _draw is the only entry.
+        expect(screen.getByRole('button', { name: /^insert _draw at cursor$/i })).toBeInTheDocument();
+    });
+
+    it('clicking Insert calls onInsert with the entry\'s `insert` value when present', () => {
+        const onInsert = vi.fn();
+        render(<ScriptApiModal open={true} onClose={() => {}} onInsert={onInsert} />);
+        fireEvent.click(screen.getByRole('button', { name: /^insert _draw at cursor$/i }));
+        expect(onInsert).toHaveBeenCalledTimes(1);
+        // _draw has an `insert` override that is a multi-line skeleton.
+        const arg = onInsert.mock.calls[0][0] as string;
+        expect(arg).toContain('function _draw()');
+        expect(arg).toContain('end');
+    });
+
+    it('clicking Insert falls back to signature when `insert` is absent', () => {
+        const onInsert = vi.fn();
+        render(<ScriptApiModal open={true} onClose={() => {}} onInsert={onInsert} />);
+        fireEvent.click(screen.getByRole('tab', { name: /^Drawing\b/ }));
+        fireEvent.click(screen.getByRole('button', { name: /^insert cls at cursor$/i }));
+        expect(onInsert).toHaveBeenCalledWith('cls()');
+    });
+
+    it('clicking Insert closes the modal', () => {
+        const onInsert = vi.fn();
+        const onClose = vi.fn();
+        render(<ScriptApiModal open={true} onClose={onClose} onInsert={onInsert} />);
+        fireEvent.click(screen.getByRole('button', { name: /^insert _draw at cursor$/i }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
