@@ -6,3 +6,4 @@ Cargo.lock
 /web/tinybit_wasm.wasm
 /.worktrees/
 /.superpowers/
+/.claude/worktrees/
