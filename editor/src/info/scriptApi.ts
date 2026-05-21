@@ -69,7 +69,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
                     { name: 'x, y', description: 'Top-left target position in pixels.' },
                 ],
                 example: 'sprite(0, 60, 60)',
-                tip: 'The 128×128 sheet has 16 cells per row, so row 1 starts at index 16, row 2 at 32, and so on.',
+                tip: 'The short form is the easy way in. Reach for the long form when you need to draw a region that is not 8×8, or to rotate.',
                 insert: 'sprite(n, x, y)',
             },
             {
@@ -206,7 +206,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
             {
                 name: 'sfx_active',
                 signature: 'sfx_active() -> bool',
-                description: 'Returns true while the SFX channel is still playing. Use it to chain or gate sound effects.',
+                description: 'Return true while the SFX channel is still playing. Use it to wait until a sound effect finishes before starting another.',
             },
         ],
     },
@@ -216,7 +216,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
             {
                 name: 'btn',
                 signature: 'btn(button) -> bool',
-                description: 'Returns true for every frame the given button is held down.',
+                description: 'Return true for every frame the given button is held down.',
                 params: [
                     { name: 'button', description: 'A button constant: A, B, UP, DOWN, LEFT, RIGHT, START, or SELECT.' },
                 ],
@@ -225,7 +225,10 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
             {
                 name: 'btnp',
                 signature: 'btnp(button) -> bool',
-                description: 'Returns true only on the first frame the given button was pressed. Useful for one-shot actions like jumping or shooting.',
+                description: 'Return true only on the first frame the given button was pressed. Useful for one-shot actions like jumping or shooting.',
+                params: [
+                    { name: 'button', description: 'A button constant: A, B, UP, DOWN, LEFT, RIGHT, START, or SELECT.' },
+                ],
                 example: 'if btnp(A) then sfx("c/4") end',
             },
             { name: 'A',     signature: 'A',     description: 'Button constant for the A button.' },
@@ -271,7 +274,7 @@ export const SCRIPT_API_SECTIONS: ApiSection[] = [
             {
                 name: 'copy',
                 signature: 'copy(dst, src, size)',
-                description: 'Copy size bytes between two raw-memory addresses. Advanced.',
+                description: 'Copy size bytes between two raw memory addresses. Advanced.',
             },
             {
                 name: 'log',

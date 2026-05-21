@@ -53,11 +53,18 @@ describe('SCRIPT_API_SECTIONS data', () => {
 describe('SCRIPT_API_SECTIONS — jargon-free copy', () => {
     const BANNED = ['blit', 'RGBA4444', 'Pack 8-bit'];
 
-    it('no description contains banned jargon', () => {
+    it('no description, tip, or param contains banned jargon', () => {
         for (const s of SCRIPT_API_SECTIONS) {
             for (const e of s.items) {
-                for (const term of BANNED) {
-                    expect(e.description.toLowerCase()).not.toContain(term.toLowerCase());
+                const fields = [
+                    e.description,
+                    e.tip ?? '',
+                    ...(e.params ?? []).map((p) => p.description),
+                ];
+                for (const field of fields) {
+                    for (const term of BANNED) {
+                        expect(field.toLowerCase()).not.toContain(term.toLowerCase());
+                    }
                 }
             }
         }
