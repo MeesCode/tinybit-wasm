@@ -1,40 +1,10 @@
-import { describe, test, expect, afterEach, vi } from 'vitest';
+import { describe, test, expect, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useIsNarrowViewport, NARROW_BREAKPOINT_PX } from './useIsNarrowViewport';
-
-interface StubMql {
-    matches: boolean;
-    listeners: Array<(e: MediaQueryListEvent) => void>;
-}
-
-function stubMatchMedia(initial: boolean): StubMql {
-    const stub: StubMql = { matches: initial, listeners: [] };
-    const mql = {
-        get matches() { return stub.matches; },
-        media: '',
-        onchange: null,
-        addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => {
-            stub.listeners.push(l);
-        },
-        removeEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => {
-            const i = stub.listeners.indexOf(l);
-            if (i >= 0) stub.listeners.splice(i, 1);
-        },
-        addListener: () => {},
-        removeListener: () => {},
-        dispatchEvent: () => false,
-    } as unknown as MediaQueryList;
-    Object.defineProperty(window, 'matchMedia', {
-        configurable: true,
-        writable: true,
-        value: vi.fn(() => mql),
-    });
-    return stub;
-}
+import { stubMatchMedia, restoreMatchMedia } from './testHelpers';
 
 afterEach(() => {
-    // Restore: jsdom never had matchMedia, so deleting is fine.
-    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+    restoreMatchMedia();
 });
 
 describe('useIsNarrowViewport', () => {
