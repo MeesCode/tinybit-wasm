@@ -49,3 +49,32 @@ describe('SCRIPT_API_SECTIONS data', () => {
         expect(audio!.items.some((e) => e.name === 'music')).toBe(true);
     });
 });
+
+describe('SCRIPT_API_SECTIONS — jargon-free copy', () => {
+    const BANNED = ['blit', 'RGBA4444', 'Pack 8-bit'];
+
+    it('no description contains banned jargon', () => {
+        for (const s of SCRIPT_API_SECTIONS) {
+            for (const e of s.items) {
+                for (const term of BANNED) {
+                    expect(e.description.toLowerCase()).not.toContain(term.toLowerCase());
+                }
+            }
+        }
+    });
+});
+
+describe('SCRIPT_API_SECTIONS — params shape', () => {
+    it('every params array, when present, is non-empty and well-formed', () => {
+        for (const s of SCRIPT_API_SECTIONS) {
+            for (const e of s.items) {
+                if (e.params === undefined) continue;
+                expect(e.params.length).toBeGreaterThan(0);
+                for (const p of e.params) {
+                    expect(p.name.length).toBeGreaterThan(0);
+                    expect(p.description.length).toBeGreaterThan(0);
+                }
+            }
+        }
+    });
+});
