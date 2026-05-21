@@ -14,6 +14,7 @@ export function useIsNarrowViewport(): boolean {
     useEffect(() => {
         if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
         const mql = window.matchMedia(QUERY);
+        setNarrow(mql.matches);
         const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
         mql.addEventListener('change', onChange);
         return () => mql.removeEventListener('change', onChange);
