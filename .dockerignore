@@ -1,0 +1,23 @@
+# VCS — .git dirs/files (incl. submodule gitlinks) are not needed by the build.
+**/.git
+.gitmodules
+
+# Dependency + build outputs (regenerated inside the image).
+**/node_modules
+target
+editor/dist
+editor/.vite
+
+# Test artifacts.
+editor/test-results
+editor/playwright-report
+
+# Editor build output served by Vite is regenerated from stage 1.
+editor/public/tinybit_wasm.wasm
+
+# Misc local/tooling files irrelevant to the build.
+.superpowers
+.claude
+docs
+scripts
+*.md

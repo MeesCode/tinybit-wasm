@@ -1,0 +1,7 @@
+services:
+  tinybit:
+    build: .
+    container_name: tinybit
+    ports:
+      - "4173:4173"
+    restart: unless-stopped
